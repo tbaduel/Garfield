@@ -5,21 +5,21 @@ import java.util.HashMap;
 import java.util.Map;
 
 
-public class ServerHeader {
+public class BodyParser {
 
     private final Map<String, String> fields;
     private final int size;
     
-    private ServerHeader(int size, Map<String, String> fields) throws GFPException {
+    private BodyParser(int size, Map<String, String> fields) throws GFPException {
         this.fields = Collections.unmodifiableMap(fields);
         this.size = size;
     }
     
-    public static ServerHeader create(int size, Map<String,String> fields) throws GFPException {
+    public static BodyParser create(int size, Map<String,String> fields) throws GFPException {
         Map<String,String> fieldsCopied = new HashMap<>();
         for (String s : fields.keySet())
             fieldsCopied.put(s,fields.get(s).trim());
-        return new ServerHeader(size, fieldsCopied);
+        return new BodyParser(size, fieldsCopied);
     }
     
     public String getField(String field) {

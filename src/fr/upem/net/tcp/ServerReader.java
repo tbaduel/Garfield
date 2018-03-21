@@ -26,12 +26,12 @@ public class ServerReader {
 	}
 	
 	/**
-	 * @return The ServerHeader object corresponding to the header read
+	 * @return The BodyParser object corresponding to the body read as fields
 	 * @throws IOException
-	 *             GFPException if the connection is closed before a header could
-	 *             be read if the header is ill-formed
+	 *             GFPException if the connection is closed before a body could
+	 *             be read if the body is ill-formed
 	 */
-	public static ServerHeader readHeader(String data) throws IOException {
+	public static BodyParser readBody(String data) throws IOException {
 		// TODO
 		int size = data.length();
 		Map<String, String> map = new HashMap<String, String>();
@@ -44,7 +44,7 @@ public class ServerReader {
 			map.merge(keyvalue[0].toLowerCase(), keyvalue[1], (x, y) -> String.join("; ", x, y));
 		}
 		
-		return ServerHeader.create(size, map);
+		return BodyParser.create(size, map);
 	}
 	
 

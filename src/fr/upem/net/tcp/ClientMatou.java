@@ -20,9 +20,52 @@ public class ClientMatou {
 		this.sc = sc;
 	}
 
-	public boolean requestServer(int id, String dataBody, byte endMsg) throws IOException {
+	static boolean readFully(SocketChannel sc, ByteBuffer bb) throws IOException {
+		while (sc.read(bb) != -1) {
+			if (!bb.hasRemaining()) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	public BodyParser receiveServer() throws IOException {
+		// int + int + (header) + (body)
+		// readfully ~ one by one
+		ByteBuffer receive = ByteBuffer.allocate(Integer.BYTES * 2);
+		if (readFully(sc, receive)) {
+			int id = receive.getInt();
+			// what to do with id?
+			int headerSize = receive.getInt();
+			// check if > 0 ?
+			ByteBuffer header = ByteBuffer.allocate(headerSize);
+			if (readFully(sc, header)) {
+				byte endFlag = header.get();
+				int bodySize = header.getInt();
+				ByteBuffer body = ByteBuffer.allocate(bodySize);
+				if (endFlag == (byte)1) {
+					if (readFully(sc, body)) {
+						String bodyString = UTF8.decode(body).toString();
+						// bodyparser useless? 
+						// its meant to use body json efficiently
+						BodyParser bp = ServerReader.readBody(bodyString);
+						return bp;
+					}
+				} // else receive chunks?
+			}
+		}
+		return null;
+	}
+	
+	public boolean requestServer(int id, String dataBody) throws IOException {
 		ByteBuffer req = ByteBuffer.allocate(BUFFER_SIZE);
 		ByteBuffer body = UTF8.encode(dataBody);
+		byte endMsg = (byte)1;
+		// check if body is too large, if it is, then put chunk mode
+		if (!body.hasRemaining()) {
+			// TODO
+			// while endMsg == 0, send chunks until endMsg == 1
+		}
 		ByteBuffer header = ByteBuffer.allocate(64);
 		req.clear();
 		header.clear();
@@ -41,17 +84,28 @@ public class ClientMatou {
 		req.flip();
 		System.out.println("Sending request: " + id);
 		sc.write(req);
+		if (id == Opcode.REQUEST.op) {
+			// add other opcodes for ACK etc
+			BodyParser bp = receiveServer();
+			if (bp.getField("status") == Opcode.WHISP_OK.toString()) {
+				System.out.println("WHISP MODE!");
+			}
+			else if (bp.getField("status") == Opcode.LOGIN_OK.toString()) {
+				System.out.println("LOGIN SUCCESS!");
+			}
+		
+		}
 		return true;
 	}
 	
 	public boolean login(String login, String password, boolean newUser) throws IOException {
 		String data = "username: " + login + "\r\npassword: " + password + "\r\n";
-		if (newUser == true && requestServer(Opcode.SIGNUP.op, data, (byte)1)) {
+		if (newUser == true && requestServer(Opcode.SIGNUP.op, data)) {
 			// inscription
 			return true;
 		}
 		// login
-		return requestServer(Opcode.LOGIN.op, data, (byte)1);
+		return requestServer(Opcode.LOGIN.op, data);
 	}
 	
 	/* [18:27] tikko to localhost: salut les amis
@@ -73,13 +127,13 @@ public class ClientMatou {
 		}
 	}
 	
-	public void executeAction(Opcode op, String line) {
+	public void executeAction(Opcode op, String line) throws IOException {
 		switch (op) {
 		case MESSAGE:
-			
+			requestServer(Opcode.MESSAGE.op, line);
 			break;
 		case REQUEST:
-			
+			requestServer(Opcode.REQUEST.op, line);
 			break;
 		default:
 			break;
