@@ -10,6 +10,7 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -94,22 +95,38 @@ public class ServerMatou {
 			// TODO
 		}
 
-		public ByteBuffer messageProcessing() {
+		public ByteBuffer messageProcessing() throws IOException {
 			ByteBuffer bb = ByteBuffer.allocate(BUFFER_SIZE);
+			String bodyString = UTF8.decode(message).toString();
+			BodyParser bp = ServerReader.readBody(bodyString);
+			String name;
 			switch (opCode) {
 			case SIGNUP:
-				String name = server.map.get(key.channel());
-				
+				name = bp.getField("username");
+				if (server.map.containsValue(name)) {		// Username already used
+					bb.putInt(Integer.valueOf(Opcode.SIGNUP_ERR.op));
+				}
+				else {										// Username not used
+					bb.putInt(Integer.valueOf(Opcode.SIGNUP_OK.op));
+				}
 				break;
+				
+				
 			case LOGIN:
 				break;
 
 			case MESSAGE:
+				name = server.map.get(sc.getRemoteAddress());
+				bb.putInt(Integer.valueOf(Opcode.MESSAGE_SERV.op));
+				bb.put(UTF8.encode(bp.getField("data")));
 				break;
+				
+				
 			default:
 				break;
+				
 			}
-			return null;
+			return bb;
 		}
 
 		/**
@@ -253,6 +270,7 @@ public class ServerMatou {
 	private final Selector selector;
 	private final Set<SelectionKey> selectedKeys;
 	private final HashMap<SocketAddress, String> map;
+	private final static Charset UTF8 = Charset.forName("utf-8");
 
 	public ServerMatou(int port) throws IOException {
 		serverSocketChannel = ServerSocketChannel.open();
