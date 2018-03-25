@@ -113,11 +113,19 @@ public class ServerMatou {
 				
 				
 			case LOGIN:
+				name = bp.getField("username");
+				if (server.map.containsValue(name)) {		// Username already used
+					bb.putInt(Integer.valueOf(Opcode.LOGIN_ERR.op));
+				}
+				else {										// Username not used
+					bb.putInt(Integer.valueOf(Opcode.LOGIN_OK.op));
+				}
+				
 				break;
 
 			case MESSAGE:
 				name = server.map.get(sc.getRemoteAddress());
-				bb.putInt(Integer.valueOf(Opcode.MESSAGE_SERV.op));
+				bb.putInt(Integer.valueOf(Opcode.MESSAGEBROADCAST.op));
 				bb.put(UTF8.encode(bp.getField("data")));
 				break;
 				
@@ -269,7 +277,9 @@ public class ServerMatou {
 	private final ServerSocketChannel serverSocketChannel;
 	private final Selector selector;
 	private final Set<SelectionKey> selectedKeys;
-	private final HashMap<SocketAddress, String> map;
+	private final HashMap<SocketAddress, String> map;				//Address => Username
+	private final HashMap<String,String> userMap;					// Username => password
+	
 	private final static Charset UTF8 = Charset.forName("utf-8");
 
 	public ServerMatou(int port) throws IOException {
@@ -278,6 +288,7 @@ public class ServerMatou {
 		selector = Selector.open();
 		selectedKeys = selector.selectedKeys();
 		map = new HashMap<>();
+		userMap = new HashMap<>();
 	}
 
 	public void launch() throws IOException {
