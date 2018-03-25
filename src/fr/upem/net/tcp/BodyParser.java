@@ -22,6 +22,16 @@ public class BodyParser {
         return new BodyParser(size, fieldsCopied);
     }
     
+    public static BodyParser createAck(int ack) throws GFPException {
+    	Map<String, String> fields = new HashMap<>();
+    	fields.put("status", String.valueOf(ack));
+    	return new BodyParser(0, fields);
+    }
+    
+    public void addField(String field, String value) {
+    	fields.put(field, value);
+    }
+    
     public String getField(String field) {
     	return fields.get(field);
     }
