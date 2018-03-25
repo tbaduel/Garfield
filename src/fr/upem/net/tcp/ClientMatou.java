@@ -21,7 +21,10 @@ public class ClientMatou {
 
 	static boolean readFully(SocketChannel sc, ByteBuffer bb) throws IOException {
 		while (sc.read(bb) != -1) {
+			System.out.println("reeaaaad");
+			
 			if (!bb.hasRemaining()) {
+				System.out.println("jai tout lu");
 				return true;
 			}
 		}
@@ -35,7 +38,9 @@ public class ClientMatou {
 		// status)
 		ByteBuffer receive = ByteBuffer.allocate(Integer.BYTES * 2);
 		System.out.println("Receiving...");
-		if (readFully(sc, receive)) {
+		boolean test = readFully(sc, receive);
+		System.out.println(test);
+		if (test) {
 			receive.flip();
 			int id = receive.getInt();
 			System.out.println("Id: " + id);

@@ -95,7 +95,10 @@ public class ServerMatou {
 				headerReaded = false;
 				headerSizeReaded = false;
 				messageReaded = false;
-				server.broadcast(messageProcessing());
+				ByteBuffer responseToBroadcast = messageProcessing();
+				if (responseToBroadcast != null) {
+					server.broadcast(messageProcessing());
+				}
 			}
 
 			bbin.compact();
@@ -117,6 +120,8 @@ public class ServerMatou {
 					System.out.println("ADDED: " + Opcode.SIGNUP_OK);
 					server.map.put(sc.getRemoteAddress(), name);
 					server.userMap.put(name, bp.getField("password"));
+					queueMessage(bb);
+					bb = null;
 				}
 				break;
 
@@ -134,7 +139,8 @@ public class ServerMatou {
 				} else { 													
 					bb.putInt(Opcode.LOGIN_ERR.op);
 				}
-
+				queueMessage(bb);
+				bb = null;
 				break;
 
 			case MESSAGE:
@@ -185,9 +191,10 @@ public class ServerMatou {
 		private void processOut() {
 			// TODO
 			while (bbout.remaining() >= Integer.BYTES && queue.size() > 0) {
-				System.out.println(bbout.remaining());
+				System.out.println("remaining " +bbout.remaining());
 				ByteBuffer a = queue.poll();
 				System.out.println("add : " + a);
+				a.flip();
 				bbout.put(a);
 			}
 		}
@@ -254,8 +261,11 @@ public class ServerMatou {
 		private void doWrite() throws IOException {
 			// TODO
 			bbout.flip();
+			System.out.println("ID to send = " + bbout.getInt());
+			bbout.position(0);
 			sc.write(bbout);
 			bbout.compact();
+			System.out.println("Il reste a envoyer " + bbout);
 			updateInterestOps();
 		}
 
@@ -289,6 +299,8 @@ public class ServerMatou {
 	 */
 	private void broadcast(ByteBuffer msg) {
 		// TODO
+		if (msg == null)
+			return;
 		System.out.println("\n\t SIZE = " + selector.keys().size());
 		for (SelectionKey key : selector.keys()) {
 			System.out.println("une key");
