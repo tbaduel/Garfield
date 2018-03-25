@@ -21,10 +21,7 @@ public class ClientMatou {
 
 	static boolean readFully(SocketChannel sc, ByteBuffer bb) throws IOException {
 		while (sc.read(bb) != -1) {
-			System.out.println("reeaaaad");
-			
 			if (!bb.hasRemaining()) {
-				System.out.println("jai tout lu");
 				return true;
 			}
 		}
@@ -36,7 +33,7 @@ public class ClientMatou {
 		// readfully ~ one by one
 		// status badly formed, need to restructure code (opcode added in bodyparser as
 		// status)
-		ByteBuffer receive = ByteBuffer.allocate(Integer.BYTES * 2);
+		ByteBuffer receive = ByteBuffer.allocate(Integer.BYTES);
 		System.out.println("Receiving...");
 		boolean test = readFully(sc, receive);
 		System.out.println(test);
@@ -48,26 +45,29 @@ public class ClientMatou {
 				// if id > 99 then its ack
 				return BodyParser.createAck(id);
 			}
-			int headerSize = receive.getInt();
-			// check if > 0 ?
+			ByteBuffer headerSizeBuff = ByteBuffer.allocate(Integer.BYTES);
+			if (readFully(sc, headerSizeBuff)) {
+				int headerSize = headerSizeBuff.getInt();
+				// check if > 0 ?
 
-			ByteBuffer header = ByteBuffer.allocate(headerSize);
-			if (readFully(sc, header)) {
-				header.flip();
-				byte endFlag = header.get();
-				int bodySize = header.getInt();
-				ByteBuffer body = ByteBuffer.allocate(bodySize);
-				if (endFlag == (byte) 1) {
-					if (readFully(sc, body)) {
-						body.flip();
-						String bodyString = UTF8.decode(body).toString();
-						// bodyparser useless?
-						// its meant to use body json efficiently
-						BodyParser bp = ServerReader.readBody(bodyString);
-						bp.addField("status", String.valueOf(id));
-						return bp;
-					}
-				} // else receive chunks?
+				ByteBuffer header = ByteBuffer.allocate(headerSize);
+				if (readFully(sc, header)) {
+					header.flip();
+					byte endFlag = header.get();
+					int bodySize = header.getInt();
+					ByteBuffer body = ByteBuffer.allocate(bodySize);
+					if (endFlag == (byte) 1) {
+						if (readFully(sc, body)) {
+							body.flip();
+							String bodyString = UTF8.decode(body).toString();
+							// bodyparser useless?
+							// its meant to use body json efficiently
+							BodyParser bp = ServerReader.readBody(bodyString);
+							bp.addField("status", String.valueOf(id));
+							return bp;
+						}
+					} // else receive chunks?
+				}
 			}
 		}
 		return null;
@@ -102,14 +102,17 @@ public class ClientMatou {
 		sc.write(req);
 		// add other opcodes for ACK etc
 		BodyParser bp = receiveServer();
-		System.out.println("status = " + bp.getField("status"));
+		boolean ret = false;
 		if (bp.getField("status") == Opcode.WHISP_OK.toString()) {
 			System.out.println("WHISP MODE!");
-		} else if (bp.getField("status") == Opcode.LOGIN_OK.toString()) {
+		} else if (bp.getField("status").equals(Opcode.LOGIN_OK.toString())) {
 			System.out.println("LOGIN SUCCESS!");
+			ret = true;
+		} else if (bp.getField("status").equals(Opcode.SIGNUP_OK.toString())) {
+			System.out.println("SIGNUP SUCCESS!");
+			ret = true;
 		}
-
-		return true;
+		return ret;
 	}
 
 	public boolean login(String login, String password, boolean newUser) throws IOException {
@@ -131,6 +134,7 @@ public class ClientMatou {
 
 	public void beginChat(Scanner scan) throws IOException {
 		while (true) {
+			System.out.print("$> ");
 			String line = scan.nextLine();
 			ParserLine parser = ParserLine.parse(line);
 			executeAction(parser.opcode, parser.line);
