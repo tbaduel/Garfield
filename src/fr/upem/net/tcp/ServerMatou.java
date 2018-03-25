@@ -77,12 +77,16 @@ public class ServerMatou {
 				// server.broadcast(bbin.getInt());
 				headerSize = bbin.getInt();
 				headerSizeReaded = true;
+				System.out.println("header size = "+ headerSize);
 			}
 
 			// get header
 			if (headerSizeReaded && !headerReaded && bbin.remaining() >= headerSize) {
 				header = readBytes(headerSize);
-				//header.flip();
+				header.flip();
+				int pos = header.position();
+				System.out.println("flag = " + header.get()+", size = " + header.getInt());
+				header.position(pos);
 				endFlag = (header.get() == 1 ? true : false);
 				messageSize = header.getInt();
 				headerReaded = true;
@@ -263,6 +267,7 @@ public class ServerMatou {
 			bbout.flip();
 			System.out.println("ID to send = " + bbout.getInt());
 			bbout.position(0);
+			System.out.println("Avant envoie : " + bbout);
 			sc.write(bbout);
 			bbout.compact();
 			System.out.println("Il reste a envoyer " + bbout);
@@ -281,12 +286,15 @@ public class ServerMatou {
 			System.out.println("Allocate size = " + size);
 			bbin.flip();
 			if (bbin.hasRemaining()) {
-				if (bbin.remaining() <= bb.remaining()) {
-					System.out.println("plus petit");
-					bb.put(bbin);
-					bbin.clear();
-				}
+				int pos = bbin.position() + size;
+				int limit = bbin.limit();
+				bbin.limit(pos);
+				bb.put(bbin);
+				bbin.position(pos);
+				bbin.limit(limit);
+				
 			}
+			bbin.compact();
 			return bb;
 		}
 
