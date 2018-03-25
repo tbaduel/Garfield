@@ -65,15 +65,21 @@ public class ServerMatou {
 
 		private void processIn() throws IOException {
 			bbin.flip();
+
+			// get Opcode
 			if (!opCodeReaded && bbin.remaining() >= Integer.BYTES) {
 				opCode = Opcode.valueOf(Integer.toString(bbin.getInt()));
 				opCodeReaded = true;
 			}
+
+			// get header size
 			if (opCodeReaded && !headerSizeReaded && bbin.remaining() >= Integer.BYTES) {
 				// server.broadcast(bbin.getInt());
 				headerSize = bbin.getInt();
 				headerSizeReaded = true;
 			}
+
+			// get header
 			if (headerSizeReaded && !headerReaded && bbin.remaining() >= headerSize) {
 				header = readBytes(headerSize);
 				header.flip();
@@ -82,6 +88,7 @@ public class ServerMatou {
 				headerReaded = true;
 			}
 
+			// get body
 			if (headerReaded && !messageReaded && bbin.remaining() >= messageSize) {
 				message = readBytes(messageSize);
 				opCodeReaded = false;
@@ -92,7 +99,6 @@ public class ServerMatou {
 			}
 
 			bbin.compact();
-			// TODO
 		}
 
 		public ByteBuffer messageProcessing() throws IOException {
@@ -103,36 +109,56 @@ public class ServerMatou {
 			switch (opCode) {
 			case SIGNUP:
 				name = bp.getField("username");
-				if (server.map.containsValue(name)) {		// Username already used
+				if (server.map.containsValue(name)) { 						// Username already used
 					bb.putInt(Integer.valueOf(Opcode.SIGNUP_ERR.op));
-				}
-				else {										// Username not used
+				} else { 													// Username not used
 					bb.putInt(Integer.valueOf(Opcode.SIGNUP_OK.op));
+					server.map.put(sc.getRemoteAddress(), name);
+					server.userMap.put(name, bp.getField("password"));
 				}
 				break;
-				
-				
+
 			case LOGIN:
 				name = bp.getField("username");
-				if (server.map.containsValue(name)) {		// Username already used
+				String password = bp.getField("password");
+				if (server.map.containsValue(name)) { 						// Username exists
+					if (server.userMap.get(name) == password) {
+						bb.putInt(Integer.valueOf(Opcode.LOGIN_OK.op));
+					}
+					else {
+						bb.putInt(Integer.valueOf(Opcode.LOGIN_ERR.op));	
+					}
+				} else { 													
 					bb.putInt(Integer.valueOf(Opcode.LOGIN_ERR.op));
 				}
-				else {										// Username not used
-					bb.putInt(Integer.valueOf(Opcode.LOGIN_OK.op));
-				}
-				
+
 				break;
 
 			case MESSAGE:
 				name = server.map.get(sc.getRemoteAddress());
+				name = "username: " + name + "\r\n";
+				ByteBuffer headerToSend = ByteBuffer.allocate(Byte.BYTES + Integer.BYTES);
 				bb.putInt(Integer.valueOf(Opcode.MESSAGEBROADCAST.op));
-				bb.put(UTF8.encode(bp.getField("data")));
+				ByteBuffer bodyToSend = ByteBuffer.allocate(BUFFER_SIZE);
+
+				// add content to body's buffer
+				bodyToSend.put(UTF8.encode(name));
+				bodyToSend.put(UTF8.encode(bp.getField("data")));
+				bodyToSend.flip();
+
+				// Add content to header's buffer
+				headerToSend.put(endFlag == true ? (byte) 1 : (byte) 0);
+				headerToSend.putInt(bodyToSend.remaining());
+				headerToSend.flip();
+
+				// Add header and body to ByteBuffer's response
+				bb.put(headerToSend);
+				bb.put(bodyToSend);
 				break;
-				
-				
+
 			default:
 				break;
-				
+
 			}
 			return bb;
 		}
@@ -277,9 +303,9 @@ public class ServerMatou {
 	private final ServerSocketChannel serverSocketChannel;
 	private final Selector selector;
 	private final Set<SelectionKey> selectedKeys;
-	private final HashMap<SocketAddress, String> map;				//Address => Username
-	private final HashMap<String,String> userMap;					// Username => password
-	
+	private final HashMap<SocketAddress, String> map; // Address => Username
+	private final HashMap<String, String> userMap; // Username => password
+
 	private final static Charset UTF8 = Charset.forName("utf-8");
 
 	public ServerMatou(int port) throws IOException {
