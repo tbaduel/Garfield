@@ -16,4 +16,14 @@ public enum Opcode {
 	public String toString() {
 		return Integer.toString(op);
 	}
+	
+	static Opcode valueOfId(int id) {
+	    for (Opcode opcode : values()) {
+	         int valueId = opcode.op;
+	         if (id == valueId) {
+	              return opcode;
+	         }
+	    }
+		return Opcode.ERROR;
+	}
 }

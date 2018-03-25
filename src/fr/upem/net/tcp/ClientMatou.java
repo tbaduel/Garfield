@@ -31,12 +31,16 @@ public class ClientMatou {
 	public BodyParser receiveServer() throws IOException {
 		// int + int + (header) + (body)
 		// readfully ~ one by one
-		// status badly formed, need to restructure code (opcode added in bodyparser as status)
+		// status badly formed, need to restructure code (opcode added in bodyparser as
+		// status)
 		ByteBuffer receive = ByteBuffer.allocate(Integer.BYTES * 2);
+		System.out.println("Receiving...");
 		if (readFully(sc, receive)) {
+			receive.flip();
 			int id = receive.getInt();
+			System.out.println("Id: " + id);
 			if (id > 99) {
-				//if id > 99 then its ack
+				// if id > 99 then its ack
 				return BodyParser.createAck(id);
 			}
 			int headerSize = receive.getInt();
@@ -44,11 +48,13 @@ public class ClientMatou {
 
 			ByteBuffer header = ByteBuffer.allocate(headerSize);
 			if (readFully(sc, header)) {
+				header.flip();
 				byte endFlag = header.get();
 				int bodySize = header.getInt();
 				ByteBuffer body = ByteBuffer.allocate(bodySize);
 				if (endFlag == (byte) 1) {
 					if (readFully(sc, body)) {
+						body.flip();
 						String bodyString = UTF8.decode(body).toString();
 						// bodyparser useless?
 						// its meant to use body json efficiently
@@ -74,7 +80,7 @@ public class ClientMatou {
 		ByteBuffer header = ByteBuffer.allocate(64);
 		req.clear();
 		header.clear();
-
+		// make header before adding id of packet
 		header.put(endMsg);
 		header.putInt(body.remaining());
 		header.flip();
@@ -89,16 +95,15 @@ public class ClientMatou {
 		req.flip();
 		System.out.println("Sending request: " + id);
 		sc.write(req);
-		if (id == Opcode.REQUEST.op) {
-			// add other opcodes for ACK etc
-			BodyParser bp = receiveServer();
-			if (bp.getField("status") == Opcode.WHISP_OK.toString()) {
-				System.out.println("WHISP MODE!");
-			} else if (bp.getField("status") == Opcode.LOGIN_OK.toString()) {
-				System.out.println("LOGIN SUCCESS!");
-			}
-
+		// add other opcodes for ACK etc
+		BodyParser bp = receiveServer();
+		System.out.println("status = " + bp.getField("status"));
+		if (bp.getField("status") == Opcode.WHISP_OK.toString()) {
+			System.out.println("WHISP MODE!");
+		} else if (bp.getField("status") == Opcode.LOGIN_OK.toString()) {
+			System.out.println("LOGIN SUCCESS!");
 		}
+
 		return true;
 	}
 

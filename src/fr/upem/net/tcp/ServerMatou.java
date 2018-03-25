@@ -68,7 +68,7 @@ public class ServerMatou {
 
 			// get Opcode
 			if (!opCodeReaded && bbin.remaining() >= Integer.BYTES) {
-				opCode = Opcode.valueOf(Integer.toString(bbin.getInt()));
+				opCode = Opcode.valueOfId(bbin.getInt());
 				opCodeReaded = true;
 			}
 
@@ -82,7 +82,7 @@ public class ServerMatou {
 			// get header
 			if (headerSizeReaded && !headerReaded && bbin.remaining() >= headerSize) {
 				header = readBytes(headerSize);
-				header.flip();
+				//header.flip();
 				endFlag = (header.get() == 1 ? true : false);
 				messageSize = header.getInt();
 				headerReaded = true;
@@ -108,28 +108,31 @@ public class ServerMatou {
 			String name;
 			switch (opCode) {
 			case SIGNUP:
+				System.out.println("Signin...");
 				name = bp.getField("username");
 				if (server.map.containsValue(name)) { 						// Username already used
-					bb.putInt(Integer.valueOf(Opcode.SIGNUP_ERR.op));
+					bb.putInt(Opcode.SIGNUP_ERR.op);
 				} else { 													// Username not used
-					bb.putInt(Integer.valueOf(Opcode.SIGNUP_OK.op));
+					bb.putInt(Opcode.SIGNUP_OK.op);
+					System.out.println("ADDED: " + Opcode.SIGNUP_OK);
 					server.map.put(sc.getRemoteAddress(), name);
 					server.userMap.put(name, bp.getField("password"));
 				}
 				break;
 
 			case LOGIN:
+				System.out.println("Login...");
 				name = bp.getField("username");
 				String password = bp.getField("password");
 				if (server.map.containsValue(name)) { 						// Username exists
 					if (server.userMap.get(name) == password) {
-						bb.putInt(Integer.valueOf(Opcode.LOGIN_OK.op));
+						bb.putInt(Opcode.LOGIN_OK.op);
 					}
 					else {
-						bb.putInt(Integer.valueOf(Opcode.LOGIN_ERR.op));	
+						bb.putInt(Opcode.LOGIN_ERR.op);	
 					}
 				} else { 													
-					bb.putInt(Integer.valueOf(Opcode.LOGIN_ERR.op));
+					bb.putInt(Opcode.LOGIN_ERR.op);
 				}
 
 				break;
@@ -138,7 +141,7 @@ public class ServerMatou {
 				name = server.map.get(sc.getRemoteAddress());
 				name = "username: " + name + "\r\n";
 				ByteBuffer headerToSend = ByteBuffer.allocate(Byte.BYTES + Integer.BYTES);
-				bb.putInt(Integer.valueOf(Opcode.MESSAGEBROADCAST.op));
+				bb.putInt(Opcode.MESSAGEBROADCAST.op);
 				ByteBuffer bodyToSend = ByteBuffer.allocate(BUFFER_SIZE);
 
 				// add content to body's buffer
