@@ -36,7 +36,7 @@ public class ClientMatou {
 		ByteBuffer receive = ByteBuffer.allocate(Integer.BYTES);
 		System.out.println("Receiving...");
 		boolean test = readFully(sc, receive);
-		System.out.println(test);
+		System.out.println("ReadFully = " + test);
 		if (test) {
 			receive.flip();
 			int id = receive.getInt();
@@ -47,6 +47,7 @@ public class ClientMatou {
 			}
 			ByteBuffer headerSizeBuff = ByteBuffer.allocate(Integer.BYTES);
 			if (readFully(sc, headerSizeBuff)) {
+				headerSizeBuff.flip();
 				int headerSize = headerSizeBuff.getInt();
 				// check if > 0 ?
 
@@ -62,6 +63,7 @@ public class ClientMatou {
 							String bodyString = UTF8.decode(body).toString();
 							// bodyparser useless?
 							// its meant to use body json efficiently
+							System.out.println(bodyString);
 							BodyParser bp = ServerReader.readBody(bodyString);
 							bp.addField("status", String.valueOf(id));
 							return bp;
@@ -69,6 +71,11 @@ public class ClientMatou {
 					} // else receive chunks?
 				}
 			}
+		}
+		else {
+			// Debug ONLY
+			receive.flip();
+			System.out.println(receive);
 		}
 		return null;
 	}

@@ -1,6 +1,6 @@
 package fr.upem.net.tcp;
 
-import java.util.Collections;
+//import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -11,7 +11,8 @@ public class BodyParser {
     private final int size;
     
     private BodyParser(int size, Map<String, String> fields) throws GFPException {
-        this.fields = Collections.unmodifiableMap(fields);
+        //this.fields = Collections.unmodifiableMap(fields);
+    	this.fields = fields;
         this.size = size;
     }
     

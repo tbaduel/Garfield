@@ -70,6 +70,7 @@ public class ServerMatou {
 			if (!opCodeReaded && bbin.remaining() >= Integer.BYTES) {
 				opCode = Opcode.valueOfId(bbin.getInt());
 				opCodeReaded = true;
+				System.out.println("bbinRemaing = " + bbin.remaining());
 			}
 
 			// get header size
@@ -78,6 +79,7 @@ public class ServerMatou {
 				headerSize = bbin.getInt();
 				headerSizeReaded = true;
 				System.out.println("header size = "+ headerSize);
+				System.out.println("bbinRemaing = " + bbin.remaining());
 			}
 
 			// get header
@@ -87,30 +89,37 @@ public class ServerMatou {
 				int pos = header.position();
 				System.out.println("flag = " + header.get()+", size = " + header.getInt());
 				header.position(pos);
-				endFlag = (header.get() == 1 ? true : false);
+				endFlag = (header.get() == (byte)1 ? true : false);
 				messageSize = header.getInt();
 				headerReaded = true;
+				System.out.println("bbinRemaing = " + bbin.remaining());
 			}
 
 			// get body
 			if (headerReaded && !messageReaded && bbin.remaining() >= messageSize) {
 				message = readBytes(messageSize);
+				System.out.println("message = "+ message.toString());
 				opCodeReaded = false;
 				headerReaded = false;
 				headerSizeReaded = false;
 				messageReaded = false;
+				bbin.compact();
+				System.out.println("bbinRemaing = " + bbin.remaining());
 				ByteBuffer responseToBroadcast = messageProcessing();
 				if (responseToBroadcast != null) {
-					server.broadcast(messageProcessing());
+					server.broadcast(responseToBroadcast);
 				}
-			}
-
-			bbin.compact();
+			}else
+				bbin.compact();
+			
+			System.out.println("Endremaining = "+ bbin.remaining());
 		}
 
 		public ByteBuffer messageProcessing() throws IOException {
 			ByteBuffer bb = ByteBuffer.allocate(BUFFER_SIZE);
+			message.flip();
 			String bodyString = UTF8.decode(message).toString();
+			System.out.println(bodyString);
 			BodyParser bp = ServerReader.readBody(bodyString);
 			String name;
 			switch (opCode) {
@@ -156,7 +165,7 @@ public class ServerMatou {
 
 				// add content to body's buffer
 				bodyToSend.put(UTF8.encode(name));
-				bodyToSend.put(UTF8.encode(bp.getField("data")));
+				bodyToSend.put(UTF8.encode("data: " + bp.getField("data")));
 				bodyToSend.flip();
 
 				// Add content to header's buffer
@@ -165,6 +174,7 @@ public class ServerMatou {
 				headerToSend.flip();
 
 				// Add header and body to ByteBuffer's response
+				bb.putInt(headerToSend.limit());
 				bb.put(headerToSend);
 				bb.put(bodyToSend);
 				break;
@@ -195,7 +205,7 @@ public class ServerMatou {
 		private void processOut() {
 			// TODO
 			while (bbout.remaining() >= Integer.BYTES && queue.size() > 0) {
-				System.out.println("remaining " +bbout.remaining());
+				System.out.println("remaining bbout " +bbout.remaining());
 				ByteBuffer a = queue.poll();
 				System.out.println("add : " + a);
 				a.flip();
@@ -247,8 +257,12 @@ public class ServerMatou {
 
 		private void doRead() throws IOException {
 			// TODO
-			if (sc.read(bbin) == -1)
+			int read;
+			if ((read = sc.read(bbin)) == -1) {
+				logger.info("closing");
 				closed = true;
+			}
+			System.out.println("--------------\n jai lu " + read + "bytes");
 			processIn();
 			updateInterestOps();
 		}
@@ -268,7 +282,7 @@ public class ServerMatou {
 			System.out.println("ID to send = " + bbout.getInt());
 			bbout.position(0);
 			System.out.println("Avant envoie : " + bbout);
-			sc.write(bbout);
+			System.out.println("WRITING "+ sc.write(bbout));
 			bbout.compact();
 			System.out.println("Il reste a envoyer " + bbout);
 			updateInterestOps();
@@ -284,17 +298,20 @@ public class ServerMatou {
 		public ByteBuffer readBytes(int size) throws IOException {
 			ByteBuffer bb = ByteBuffer.allocate(size);
 			System.out.println("Allocate size = " + size);
-			bbin.flip();
+			//bbin.flip();
 			if (bbin.hasRemaining()) {
+				logger.info("pos = " +bbin.position()+ ", limit = " +  bbin.limit());
 				int pos = bbin.position() + size;
 				int limit = bbin.limit();
 				bbin.limit(pos);
 				bb.put(bbin);
-				bbin.position(pos);
+				//bbin.position(pos);
 				bbin.limit(limit);
 				
 			}
-			bbin.compact();
+			//logger.info("BEFORE COMPACT  : pos = " +bbin.position()+ ", limit = " +  bbin.limit());
+			//bbin.compact();
+			//logger.info("AFTER COMPACT :   pos = " +bbin.position()+ ", limit = " +  bbin.limit());
 			return bb;
 		}
 
@@ -307,6 +324,7 @@ public class ServerMatou {
 	 */
 	private void broadcast(ByteBuffer msg) {
 		// TODO
+		System.out.println("BROADCASTING ...");
 		if (msg == null)
 			return;
 		System.out.println("\n\t SIZE = " + selector.keys().size());
