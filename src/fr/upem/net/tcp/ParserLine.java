@@ -12,14 +12,14 @@ public class ParserLine {
 
 	public static ParserLine parse(String rawline) {
 		String trimline = rawline.trim();
+		if (trimline.length() < 3) {
+			return new ParserLine(Opcode.MESSAGE, "data: " + rawline);
+		}
 		String line = trimline.substring(0, 2);
 		Opcode opcode = Opcode.MESSAGE;
 		switch (line) {
 		case "/r ":
 			opcode = Opcode.REQUEST;
-			if (trimline.length() < 3) {
-				return new ParserLine(Opcode.ERROR, "");
-			}
 			return new ParserLine(opcode, "username: " + trimline.substring(2) +"\r\n");
 		case "/f ":
 			opcode = Opcode.FILE;

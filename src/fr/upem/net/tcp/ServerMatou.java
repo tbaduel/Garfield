@@ -12,8 +12,10 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.Set;
 import java.util.logging.Level;
@@ -142,8 +144,13 @@ public class ServerMatou {
 				System.out.println("Login...");
 				name = bp.getField("username");
 				String password = bp.getField("password");
-				if (server.map.containsValue(name)) { 						// Username exists
-					if (server.userMap.get(name) == password) {
+				System.out.println("name: " + name);
+				System.out.println("pwd: " + password);
+				System.out.println(server.userMap.get(name));
+				if (server.userMap.containsKey(name)) {						// Username exists
+					if (server.userMap.get(name).equals(password)) {
+						server.map.remove(getKey(name));
+						server.map.put(sc.getRemoteAddress(), name);
 						bb.putInt(Opcode.LOGIN_OK.op);
 					}
 					else {
@@ -186,6 +193,21 @@ public class ServerMatou {
 			return bb;
 		}
 
+		/**
+		 * Get the key of HashMap via value
+		 * return null if not found
+		 * @param value
+		 */
+		private SocketAddress getKey(String username) {
+			Collection<SocketAddress> keys = server.map.keySet();
+			for (SocketAddress address : keys) {
+				if (server.map.get(address).equals(username)) {
+					return address;
+				}
+			}
+			return null;
+		}
+		
 		/**
 		 * Add a message to the message queue, tries to fill bbOut and updateInterestOps
 		 *

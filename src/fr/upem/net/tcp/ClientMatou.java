@@ -1,10 +1,14 @@
 package fr.upem.net.tcp;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.Scanner;
 import java.util.logging.Logger;
 
@@ -14,6 +18,7 @@ public class ClientMatou {
 	public static final int BUFFER_SIZE = 1024;
 	public static final Logger log = Logger.getLogger(ClientMatou.class.getName());
 	public final SocketChannel sc;
+	public String username;
 
 	public ClientMatou(SocketChannel sc) {
 		this.sc = sc;
@@ -34,13 +39,10 @@ public class ClientMatou {
 		// status badly formed, need to restructure code (opcode added in bodyparser as
 		// status)
 		ByteBuffer receive = ByteBuffer.allocate(Integer.BYTES);
-		System.out.println("Receiving...");
 		boolean test = readFully(sc, receive);
-		System.out.println("ReadFully = " + test);
 		if (test) {
 			receive.flip();
 			int id = receive.getInt();
-			System.out.println("Id: " + id);
 			if (id > 99) {
 				// if id > 99 then its ack
 				return BodyParser.createAck(id);
@@ -61,9 +63,7 @@ public class ClientMatou {
 						if (readFully(sc, body)) {
 							body.flip();
 							String bodyString = UTF8.decode(body).toString();
-							// bodyparser useless?
-							// its meant to use body json efficiently
-							System.out.println(bodyString);
+							// meant to use body json efficiently
 							BodyParser bp = ServerReader.readBody(bodyString);
 							bp.addField("status", String.valueOf(id));
 							return bp;
@@ -71,11 +71,10 @@ public class ClientMatou {
 					} // else receive chunks?
 				}
 			}
-		}
-		else {
+		} else {
 			// Debug ONLY
 			receive.flip();
-			System.out.println(receive);
+			System.err.println("ERROR!");
 		}
 		return null;
 	}
@@ -105,19 +104,33 @@ public class ClientMatou {
 		// Add body to req
 		req.put(body);
 		req.flip();
-		System.out.println("Sending request: " + id);
 		sc.write(req);
 		// add other opcodes for ACK etc
 		BodyParser bp = receiveServer();
 		boolean ret = false;
-		if (bp.getField("status") == Opcode.WHISP_OK.toString()) {
-			System.out.println("WHISP MODE!");
-		} else if (bp.getField("status").equals(Opcode.LOGIN_OK.toString())) {
-			System.out.println("LOGIN SUCCESS!");
+		Opcode status = Opcode.valueOfId(Integer.parseInt(bp.getField("status")));
+		switch (status) {
+		case WHISP_OK:
 			ret = true;
-		} else if (bp.getField("status").equals(Opcode.SIGNUP_OK.toString())) {
-			System.out.println("SIGNUP SUCCESS!");
+			System.out.println("whisp mode");
+			break;
+		case LOGIN_OK:
 			ret = true;
+			System.out.println("You're now online.");
+			break;
+		case LOGIN_ERR:
+			ret = false;
+			System.out.println("Incorrect credentials.");
+			break;
+		case SIGNUP_OK:
+			ret = true;
+			System.out.println("Registration complete.");
+			break;
+		case MESSAGEBROADCAST:
+			ret = true;
+			Calendar date = Calendar.getInstance();
+			System.out.println("[" + date.get(Calendar.HOUR) + ":" + date.get(Calendar.MINUTE) + "]" + bp.getField("username") + ": " + bp.getField("data"));
+			break;			
 		}
 		return ret;
 	}
@@ -140,6 +153,7 @@ public class ClientMatou {
 	 */
 
 	public void beginChat(Scanner scan) throws IOException {
+		
 		while (true) {
 			System.out.print("$> ");
 			String line = scan.nextLine();
@@ -175,9 +189,9 @@ public class ClientMatou {
 				System.out.println("Are you a new user? (O/N)");
 				newUser = sc.nextLine().toLowerCase().equals("o");
 				// if newUser is true, then we'll register, otherwise we just login
-				System.out.println("Please authenticate\nLogin:");
+				System.out.print("Please authenticate\nLogin: ");
 				login = sc.nextLine();
-				System.out.println("Password:");
+				System.out.print("Password: ");
 				password = sc.nextLine();
 				auth = cm.login(login, password, newUser);
 			}
