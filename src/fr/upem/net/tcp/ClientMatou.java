@@ -5,11 +5,15 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Scanner;
+import java.util.Set;
 import java.util.logging.Logger;
 
 public class ClientMatou {
@@ -17,6 +21,9 @@ public class ClientMatou {
 	public static final Charset UTF8 = Charset.forName("UTF-8");
 	public static final int BUFFER_SIZE = 1024;
 	public static final Logger log = Logger.getLogger(ClientMatou.class.getName());
+	//private final ServerSocketChannel serverSocketChannel;
+	//private final Selector selector;
+	//private final Set<SelectionKey> selectedKeys;
 	public final SocketChannel sc;
 	public String username;
 
@@ -145,6 +152,21 @@ public class ClientMatou {
 		return requestServer(Opcode.LOGIN.op, data);
 	}
 
+/*	public void launch() throws IOException {
+		serverSocketChannel.configureBlocking(false);
+		serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
+		Set<SelectionKey> selectedKeys = selector.selectedKeys();
+		while (!Thread.interrupted()) {
+			printKeys();
+			System.out.println("Starting select");
+			selector.select();
+			System.out.println("Select finished");
+			printSelectedKey();
+			processSelectedKeys();
+			selectedKeys.clear();
+		}
+	}*/
+	
 	/*
 	 * [18:27] tikko to localhost: salut les amis [18:27] tikko to localhost: /r
 	 * thomas [18:27] localhost to thomas: DEMANDE DE TIKKO DE MESSAGE PRIVE (O/N)
@@ -153,7 +175,7 @@ public class ClientMatou {
 	 */
 
 	public void beginChat(Scanner scan) throws IOException {
-		
+		//launch();
 		while (true) {
 			System.out.print("$> ");
 			String line = scan.nextLine();

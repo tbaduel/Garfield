@@ -1,23 +1,20 @@
 package fr.upem.net.tcp;
 
 import java.nio.ByteBuffer;
-import java.nio.charset.Charset;
 
 
 public class MessageReader implements Reader {
 	
 	private enum State {
-		DONE, WAITING_NAME_SIZE, WAITING_NAME, WAITING_MSG_SIZE ,WAITING_MSG, ERROR
+		DONE, WAITING_OP, WAITING_HEADER_SIZE, WAITING_END_FLAG ,WAITING_BODY, ERROR
 	};
 	
-	private static final Charset UTF8 = Charset.forName("utf-8");
 	private final ByteBuffer bb;
-	private State state = State.WAITING_NAME;
-	private int nameSize;
-	private int msgSize;
-	private String name;
-	private String msg;
-	
+	private State state = State.WAITING_OP;
+	private int op;
+	private int headerSize;
+	private byte endFlag;
+	private String body;
 	
 
 	
@@ -28,35 +25,53 @@ public class MessageReader implements Reader {
 
 	@Override
 	public ProcessStatus process() {
-		// TODO Auto-generated method stub
 		if (state == State.DONE || state == State.ERROR) {
 			throw new IllegalStateException();
 		}
 		ProcessStatus ps;
-
+		
+		IntReader iRead = new IntReader(bb);
+		ByteReader bRead = new ByteReader(bb);
 		StringReader strRead = new StringReader(bb);
-
-		if (state == State.WAITING_NAME) {
-			ps = strRead.process();
+		if (state == State.WAITING_OP) {
+			ps = iRead.process();
 			if (ps == ProcessStatus.DONE) {
-				name = (String) strRead.get();
-				strRead.reset();
-				state = State.WAITING_MSG;
+				op = (Integer) iRead.get();
+				iRead.reset();
+				state = State.WAITING_HEADER_SIZE;
 			}
 		}
-
-		if (state == State.WAITING_MSG) {
+		
+		if (state == State.WAITING_HEADER_SIZE) {
+			ps = iRead.process();
+			if (ps == ProcessStatus.DONE) {
+				headerSize = (Integer) iRead.get();
+				iRead.reset();
+				state = State.WAITING_END_FLAG;
+			}
+		}
+		
+		if (state == State.WAITING_END_FLAG) {
+			ps = bRead.process();
+			if (ps == ProcessStatus.DONE) {
+				endFlag = (byte) bRead.get();
+				bRead.reset();
+				state = State.WAITING_BODY;
+			}
+		}
+		
+		if (state == State.WAITING_BODY) {
 			ps = strRead.process();
 			if (ps == ProcessStatus.DONE) {
-				msg = (String) strRead.get();
+				body = (String) strRead.get();
 				strRead.reset();
 				state = State.DONE;
 				return ProcessStatus.DONE;
 			}
 		}
 		return ProcessStatus.REFILL;
-		
 	}
+	
 
 	@Override
 	public Message get() {
@@ -64,14 +79,13 @@ public class MessageReader implements Reader {
 		
 		if (state != State.DONE)
 			throw new IllegalStateException();
-		//return new Message(nameSize, name, msgSize, msg);
-		return null;
+		return new Message(body, op, headerSize, endFlag);
 	}
 
 	@Override
 	public void reset() {
 		// TODO Auto-generated method stub
-		state = State.WAITING_NAME;
+		state = State.WAITING_OP;
 	}
 	
 	

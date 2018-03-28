@@ -21,6 +21,8 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import fr.upem.net.tcp.Reader.ProcessStatus;
+
 public class ServerMatou {
 
 	static private class Context {
@@ -47,7 +49,7 @@ public class ServerMatou {
 		private ByteBuffer header;
 		private ByteBuffer message;
 
-		// final private MessageReader messageReader = new MessageReader(bbin);
+		final private MessageReader messageReader = new MessageReader(bbin);
 
 		private Context(ServerMatou server, SelectionKey key) {
 			this.key = key;
@@ -67,7 +69,17 @@ public class ServerMatou {
 
 		private void processIn() throws IOException {
 			bbin.flip();
-
+			ProcessStatus ps = messageReader.process();
+			if (ps == ProcessStatus.DONE) {
+				Message msg = messageReader.get();
+				ByteBuffer toSend = msg.toByteBuffer();
+				toSend.flip();
+				server.broadcast(toSend);
+				messageReader.reset();
+			} else {
+				System.out.println("not done");
+			}
+			/*
 			// get Opcode
 			if (!opCodeReaded && bbin.remaining() >= Integer.BYTES) {
 				opCode = Opcode.valueOfId(bbin.getInt());
@@ -80,7 +92,7 @@ public class ServerMatou {
 				// server.broadcast(bbin.getInt());
 				headerSize = bbin.getInt();
 				headerSizeReaded = true;
-				System.out.println("header size = "+ headerSize);
+				System.out.println("header size = " + headerSize);
 				System.out.println("bbinRemaing = " + bbin.remaining());
 			}
 
@@ -89,9 +101,9 @@ public class ServerMatou {
 				header = readBytes(headerSize);
 				header.flip();
 				int pos = header.position();
-				System.out.println("flag = " + header.get()+", size = " + header.getInt());
+				System.out.println("flag = " + header.get() + ", size = " + header.getInt());
 				header.position(pos);
-				endFlag = (header.get() == (byte)1 ? true : false);
+				endFlag = (header.get() == (byte) 1 ? true : false);
 				messageSize = header.getInt();
 				headerReaded = true;
 				System.out.println("bbinRemaing = " + bbin.remaining());
@@ -100,7 +112,7 @@ public class ServerMatou {
 			// get body
 			if (headerReaded && !messageReaded && bbin.remaining() >= messageSize) {
 				message = readBytes(messageSize);
-				System.out.println("message = "+ message.toString());
+				System.out.println("message = " + message.toString());
 				opCodeReaded = false;
 				headerReaded = false;
 				headerSizeReaded = false;
@@ -111,10 +123,10 @@ public class ServerMatou {
 				if (responseToBroadcast != null) {
 					server.broadcast(responseToBroadcast);
 				}
-			}else
+			} else
 				bbin.compact();
-			
-			System.out.println("Endremaining = "+ bbin.remaining());
+			 */
+			System.out.println("Endremaining = " + bbin.remaining());
 		}
 
 		public ByteBuffer messageProcessing() throws IOException {
@@ -128,9 +140,9 @@ public class ServerMatou {
 			case SIGNUP:
 				System.out.println("Signin...");
 				name = bp.getField("username");
-				if (server.map.containsValue(name)) { 						// Username already used
+				if (server.map.containsValue(name)) { // Username already used
 					bb.putInt(Opcode.SIGNUP_ERR.op);
-				} else { 													// Username not used
+				} else { // Username not used
 					bb.putInt(Opcode.SIGNUP_OK.op);
 					System.out.println("ADDED: " + Opcode.SIGNUP_OK);
 					server.map.put(sc.getRemoteAddress(), name);
@@ -147,16 +159,15 @@ public class ServerMatou {
 				System.out.println("name: " + name);
 				System.out.println("pwd: " + password);
 				System.out.println(server.userMap.get(name));
-				if (server.userMap.containsKey(name)) {						// Username exists
+				if (server.userMap.containsKey(name)) { // Username exists
 					if (server.userMap.get(name).equals(password)) {
 						server.map.remove(getKey(name));
 						server.map.put(sc.getRemoteAddress(), name);
 						bb.putInt(Opcode.LOGIN_OK.op);
+					} else {
+						bb.putInt(Opcode.LOGIN_ERR.op);
 					}
-					else {
-						bb.putInt(Opcode.LOGIN_ERR.op);	
-					}
-				} else { 													
+				} else {
 					bb.putInt(Opcode.LOGIN_ERR.op);
 				}
 				queueMessage(bb);
@@ -194,8 +205,8 @@ public class ServerMatou {
 		}
 
 		/**
-		 * Get the key of HashMap via value
-		 * return null if not found
+		 * Get the key of HashMap via value return null if not found
+		 * 
 		 * @param value
 		 */
 		private SocketAddress getKey(String username) {
@@ -207,7 +218,7 @@ public class ServerMatou {
 			}
 			return null;
 		}
-		
+
 		/**
 		 * Add a message to the message queue, tries to fill bbOut and updateInterestOps
 		 *
@@ -227,7 +238,7 @@ public class ServerMatou {
 		private void processOut() {
 			// TODO
 			while (bbout.remaining() >= Integer.BYTES && queue.size() > 0) {
-				System.out.println("remaining bbout " +bbout.remaining());
+				System.out.println("remaining bbout " + bbout.remaining());
 				ByteBuffer a = queue.poll();
 				System.out.println("add : " + a);
 				a.flip();
@@ -304,7 +315,7 @@ public class ServerMatou {
 			System.out.println("ID to send = " + bbout.getInt());
 			bbout.position(0);
 			System.out.println("Avant envoie : " + bbout);
-			System.out.println("WRITING "+ sc.write(bbout));
+			System.out.println("WRITING " + sc.write(bbout));
 			bbout.compact();
 			System.out.println("Il reste a envoyer " + bbout);
 			updateInterestOps();
@@ -320,20 +331,22 @@ public class ServerMatou {
 		public ByteBuffer readBytes(int size) throws IOException {
 			ByteBuffer bb = ByteBuffer.allocate(size);
 			System.out.println("Allocate size = " + size);
-			//bbin.flip();
+			// bbin.flip();
 			if (bbin.hasRemaining()) {
-				logger.info("pos = " +bbin.position()+ ", limit = " +  bbin.limit());
+				logger.info("pos = " + bbin.position() + ", limit = " + bbin.limit());
 				int pos = bbin.position() + size;
 				int limit = bbin.limit();
 				bbin.limit(pos);
 				bb.put(bbin);
-				//bbin.position(pos);
+				// bbin.position(pos);
 				bbin.limit(limit);
-				
+
 			}
-			//logger.info("BEFORE COMPACT  : pos = " +bbin.position()+ ", limit = " +  bbin.limit());
-			//bbin.compact();
-			//logger.info("AFTER COMPACT :   pos = " +bbin.position()+ ", limit = " +  bbin.limit());
+			// logger.info("BEFORE COMPACT : pos = " +bbin.position()+ ", limit = " +
+			// bbin.limit());
+			// bbin.compact();
+			// logger.info("AFTER COMPACT : pos = " +bbin.position()+ ", limit = " +
+			// bbin.limit());
 			return bb;
 		}
 
