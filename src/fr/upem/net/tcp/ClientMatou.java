@@ -21,13 +21,17 @@ public class ClientMatou {
 	public static final Charset UTF8 = Charset.forName("UTF-8");
 	public static final int BUFFER_SIZE = 1024;
 	public static final Logger log = Logger.getLogger(ClientMatou.class.getName());
-	//private final ServerSocketChannel serverSocketChannel;
-	//private final Selector selector;
-	//private final Set<SelectionKey> selectedKeys;
+	private final ServerSocketChannel serverSocketChannel;
+	private final Selector selector;
+	private final Set<SelectionKey> selectedKeys;
 	public final SocketChannel sc;
 	public String username;
 
-	public ClientMatou(SocketChannel sc) {
+	public ClientMatou(SocketChannel sc) throws IOException {
+		serverSocketChannel = ServerSocketChannel.open();
+		serverSocketChannel.bind(new InetSocketAddress(8084));//change
+		selector = Selector.open();
+		selectedKeys = selector.selectedKeys();
 		this.sc = sc;
 	}
 
