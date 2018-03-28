@@ -354,7 +354,7 @@ public class ServerMatou {
 			System.out.println("une key");
 			if (key.isValid() && !key.isAcceptable()) {
 				System.out.println("Ajout");
-				((Context) key.attachment()).queueMessage(msg);
+				((Context) key.attachment()).queueMessage(msg.duplicate());
 			}
 		}
 

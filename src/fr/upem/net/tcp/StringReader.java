@@ -9,7 +9,7 @@ public class StringReader implements Reader {
 	private enum State {
 		DONE, WAITING_SIZE, WAITING_STRING, ERROR
 	};
-	
+
 	private static final Charset UTF8 = Charset.forName("utf-8");
 	private final ByteBuffer bb;
 	private State state = State.WAITING_SIZE;
@@ -32,28 +32,32 @@ public class StringReader implements Reader {
 			if (state == State.WAITING_SIZE) {
 				if (bb.remaining() >= Integer.BYTES) {
 					size = bb.getInt();
-					state = State.WAITING_STRING;				
+					state = State.WAITING_STRING;
+					System.out.println("\tSize = " + size);
 				}
 			}
-			
-			if(state == State.WAITING_STRING) {
+
+			if (state == State.WAITING_STRING) {
 				if (bb.remaining() >= size) {
-					 value = UTF8.decode(readBytes(size)).toString();
-					 state = State.DONE;
-					 return ProcessStatus.DONE;
-				}			
-			}
-			else
+					ByteBuffer tmp = readBytes(size);
+					tmp.flip();
+					value = UTF8.decode(tmp).toString();
+					System.out.println("\tstr = " + value);
+					state = State.DONE;
+					return ProcessStatus.DONE;
+				}
+			} else
 				return ProcessStatus.REFILL;
-				
-			
+			System.out.println("after REfill");
+
 		} catch (IOException e) {
 			// Error case
-			
+
 		} finally {
+			System.out.println("Sors du String Reader");
 			bb.compact();
 		}
-		throw new IllegalStateException();
+		return ProcessStatus.REFILL;
 
 	}
 
@@ -64,7 +68,7 @@ public class StringReader implements Reader {
 		}
 		return value;
 	}
-	
+
 	public ByteBuffer readBytes(int size) throws IOException {
 		ByteBuffer tmp = ByteBuffer.allocate(size);
 		if (bb.hasRemaining()) {
@@ -72,13 +76,12 @@ public class StringReader implements Reader {
 			int limit = bb.limit();
 			bb.limit(pos);
 			tmp.put(bb);
-			
+
 			bb.limit(limit);
-			
+
 		}
 		return tmp;
 	}
-	
 
 	@Override
 	public void reset() {
