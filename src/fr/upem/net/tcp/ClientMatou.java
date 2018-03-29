@@ -1,20 +1,14 @@
 package fr.upem.net.tcp;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousCloseException;
-import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
-import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
 import java.util.Calendar;
-import java.util.Date;
 import java.util.Scanner;
-import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -23,18 +17,11 @@ public class ClientMatou {
 	public static final Charset UTF8 = Charset.forName("UTF-8");
 	public static final int BUFFER_SIZE = 1024;
 	public static final Logger log = Logger.getLogger(ClientMatou.class.getName());
-	// private final ServerSocketChannel serverSocketChannel;
-	private final Selector selector;
-	private final Set<SelectionKey> selectedKeys;
 	public final SocketChannel sc;
 	public String username;
 	public static final Object monitor = new Object();
 
 	public ClientMatou(SocketChannel sc) throws IOException {
-		// serverSocketChannel = ServerSocketChannel.open();
-		// serverSocketChannel.bind(new InetSocketAddress(8084));// change
-		selector = Selector.open();
-		selectedKeys = selector.selectedKeys();
 		this.sc = sc;
 	}
 
@@ -53,18 +40,13 @@ public class ClientMatou {
 		// status badly formed, need to restructure code (opcode added in bodyparser as
 		// status)
 		ByteBuffer receive = ByteBuffer.allocate(Integer.BYTES);
-		boolean test = readFully(sc, receive);
-		if (test) {
+		if (readFully(sc, receive)) {
 			receive.flip();
 			int id = receive.getInt();
 			if (id > 99) {
 				// if id > 99 then its ack
 				return BodyParser.createAck(id);
 			}
-		} else {
-			// Debug ONLY
-			receive.flip();
-			System.err.println("ERROR!");
 		}
 		return null;
 	}
@@ -96,15 +78,11 @@ public class ClientMatou {
 		req.flip();
 		sc.write(req);
 		// add other opcodes for ACK etc
-		if (id != Opcode.MESSAGE.op) {
+		if (id == Opcode.LOGIN.op || id == Opcode.SIGNUP.op) {
 			BodyParser bp = receiveServer();
 			boolean ret = false;
 			Opcode status = Opcode.valueOfId(Integer.parseInt(bp.getField("status")));
 			switch (status) {
-			case WHISP_OK:
-				ret = true;
-				System.out.println("whisp mode");
-				break;
 			case LOGIN_OK:
 				ret = true;
 				System.out.println("You're now online.");
@@ -116,6 +94,8 @@ public class ClientMatou {
 			case SIGNUP_OK:
 				ret = true;
 				System.out.println("Registration complete.");
+				break;
+			default:
 				break;
 			}
 			return ret;
@@ -133,15 +113,6 @@ public class ClientMatou {
 		return requestServer(Opcode.LOGIN.op, data);
 	}
 
-	/*
-	 * public void launch() throws IOException {
-	 * serverSocketChannel.configureBlocking(false);
-	 * serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
-	 * Set<SelectionKey> selectedKeys = selector.selectedKeys(); while
-	 * (!Thread.interrupted()) { printKeys(); System.out.println("Starting select");
-	 * selector.select(); System.out.println("Select finished"); printSelectedKey();
-	 * processSelectedKeys(); selectedKeys.clear(); } }
-	 */
 	public void receiveBroadcast() {
 		// int + int + (header) + (body)
 		// readfully ~ one by one
@@ -177,9 +148,12 @@ public class ClientMatou {
 									String bodyString = UTF8.decode(body).toString();
 									// meant to use body json efficiently
 									BodyParser bp = ServerReader.readBody(bodyString);
-									Calendar date = Calendar.getInstance();
-									System.out.println("[" + date.get(Calendar.HOUR) + ":" + date.get(Calendar.MINUTE)
-											+ "]" + bp.getField("username") + ": " + bp.getField("data"));
+									if (id == Opcode.MESSAGEBROADCAST.op) {
+										Calendar date = Calendar.getInstance();
+										System.out
+												.println("[" + date.get(Calendar.HOUR) + ":" + date.get(Calendar.MINUTE)
+														+ "]" + bp.getField("username") + ": " + bp.getField("data"));
+									}
 
 								}
 							} // else receigve chunks?
