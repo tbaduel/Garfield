@@ -69,139 +69,116 @@ public class ServerMatou {
 
 		private void processIn() throws IOException {
 			bbin.flip();
+			System.out.println("BBIN :  " + bbin);
 			ProcessStatus ps = messageReader.process();
+			System.out.println(ps);
 			if (ps == ProcessStatus.DONE) {
 				Message msg = messageReader.get();
-				ByteBuffer toSend = msg.toByteBuffer();
-				toSend.flip();
-				server.broadcast(toSend);
-				messageReader.reset();
+				// ByteBuffer toSend = msg.toByteBuffer();
+				ByteBuffer toSend = messageProcessing(msg);
+				System.out.println(msg);
+				System.out.println(toSend);
+				System.out.println("BBIN :  " + bbin);
+				if (toSend != null) {
+					//toSend.flip();
+					System.out.println(toSend);
+					if (msg.getOp() == Opcode.MESSAGE.op) { // Broadcast case
+						server.broadcast(toSend);
+					}
+					else {
+						System.out.println("Sending to client ...");
+						queueMessage(toSend);
+					}
+					messageReader.reset();
+					bbin.compact();
+				}
 			} else {
 				System.out.println("not done");
 			}
 			/*
-			// get Opcode
-			if (!opCodeReaded && bbin.remaining() >= Integer.BYTES) {
-				opCode = Opcode.valueOfId(bbin.getInt());
-				opCodeReaded = true;
-				System.out.println("bbinRemaing = " + bbin.remaining());
-			}
-
-			// get header size
-			if (opCodeReaded && !headerSizeReaded && bbin.remaining() >= Integer.BYTES) {
-				// server.broadcast(bbin.getInt());
-				headerSize = bbin.getInt();
-				headerSizeReaded = true;
-				System.out.println("header size = " + headerSize);
-				System.out.println("bbinRemaing = " + bbin.remaining());
-			}
-
-			// get header
-			if (headerSizeReaded && !headerReaded && bbin.remaining() >= headerSize) {
-				header = readBytes(headerSize);
-				header.flip();
-				int pos = header.position();
-				System.out.println("flag = " + header.get() + ", size = " + header.getInt());
-				header.position(pos);
-				endFlag = (header.get() == (byte) 1 ? true : false);
-				messageSize = header.getInt();
-				headerReaded = true;
-				System.out.println("bbinRemaing = " + bbin.remaining());
-			}
-
-			// get body
-			if (headerReaded && !messageReaded && bbin.remaining() >= messageSize) {
-				message = readBytes(messageSize);
-				System.out.println("message = " + message.toString());
-				opCodeReaded = false;
-				headerReaded = false;
-				headerSizeReaded = false;
-				messageReaded = false;
-				bbin.compact();
-				System.out.println("bbinRemaing = " + bbin.remaining());
-				ByteBuffer responseToBroadcast = messageProcessing();
-				if (responseToBroadcast != null) {
-					server.broadcast(responseToBroadcast);
-				}
-			} else
-				bbin.compact();
+			 * // get Opcode if (!opCodeReaded && bbin.remaining() >= Integer.BYTES) {
+			 * opCode = Opcode.valueOfId(bbin.getInt()); opCodeReaded = true;
+			 * System.out.println("bbinRemaing = " + bbin.remaining()); }
+			 * 
+			 * // get header size if (opCodeReaded && !headerSizeReaded && bbin.remaining()
+			 * >= Integer.BYTES) { // server.broadcast(bbin.getInt()); headerSize =
+			 * bbin.getInt(); headerSizeReaded = true; System.out.println("header size = " +
+			 * headerSize); System.out.println("bbinRemaing = " + bbin.remaining()); }
+			 * 
+			 * // get header if (headerSizeReaded && !headerReaded && bbin.remaining() >=
+			 * headerSize) { header = readBytes(headerSize); header.flip(); int pos =
+			 * header.position(); System.out.println("flag = " + header.get() + ", size = "
+			 * + header.getInt()); header.position(pos); endFlag = (header.get() == (byte) 1
+			 * ? true : false); messageSize = header.getInt(); headerReaded = true;
+			 * System.out.println("bbinRemaing = " + bbin.remaining()); }
+			 * 
+			 * // get body if (headerReaded && !messageReaded && bbin.remaining() >=
+			 * messageSize) { message = readBytes(messageSize);
+			 * System.out.println("message = " + message.toString()); opCodeReaded = false;
+			 * headerReaded = false; headerSizeReaded = false; messageReaded = false;
+			 * bbin.compact(); System.out.println("bbinRemaing = " + bbin.remaining());
+			 * ByteBuffer responseToBroadcast = messageProcessing(); if (responseToBroadcast
+			 * != null) { server.broadcast(responseToBroadcast); } } else bbin.compact();
 			 */
 			System.out.println("Endremaining = " + bbin.remaining());
 		}
 
-		public ByteBuffer messageProcessing() throws IOException {
-			ByteBuffer bb = ByteBuffer.allocate(BUFFER_SIZE);
-			message.flip();
-			String bodyString = UTF8.decode(message).toString();
-			System.out.println(bodyString);
-			BodyParser bp = ServerReader.readBody(bodyString);
-			String name;
-			switch (opCode) {
-			case SIGNUP:
-				System.out.println("Signin...");
-				name = bp.getField("username");
-				if (server.map.containsValue(name)) { // Username already used
-					bb.putInt(Opcode.SIGNUP_ERR.op);
-				} else { // Username not used
-					bb.putInt(Opcode.SIGNUP_OK.op);
-					System.out.println("ADDED: " + Opcode.SIGNUP_OK);
-					server.map.put(sc.getRemoteAddress(), name);
-					server.userMap.put(name, bp.getField("password"));
-					queueMessage(bb);
-					bb = null;
-				}
-				break;
+		public ByteBuffer messageProcessing(Message msg) throws IOException {
+			// ByteBuffer bb = ByteBuffer.allocate(BUFFER_SIZE);
+			// message.flip();
+			// String bodyString = UTF8.decode(message).toString();
+			// System.out.println(bodyString);
+			// Hub.login
+			// Hub.signup
+			// Hub.message
+			// Hub.action(LOGIN)
 
-			case LOGIN:
-				System.out.println("Login...");
-				name = bp.getField("username");
-				String password = bp.getField("password");
-				System.out.println("name: " + name);
-				System.out.println("pwd: " + password);
-				System.out.println(server.userMap.get(name));
-				if (server.userMap.containsKey(name)) { // Username exists
-					if (server.userMap.get(name).equals(password)) {
-						server.map.remove(getKey(name));
-						server.map.put(sc.getRemoteAddress(), name);
-						bb.putInt(Opcode.LOGIN_OK.op);
-					} else {
-						bb.putInt(Opcode.LOGIN_ERR.op);
-					}
-				} else {
-					bb.putInt(Opcode.LOGIN_ERR.op);
-				}
-				queueMessage(bb);
-				bb = null;
-				break;
+			HubServ hub = new HubServ();
+			return hub.ServerExecute(msg, server, sc);
+			/*
+			 * BodyParser bp = msg.getBp(); String name; switch
+			 * (Opcode.valueOfId(msg.getOp())) { case SIGNUP:
+			 * System.out.println("Signin..."); name = bp.getField("username"); if
+			 * (server.map.containsValue(name)) { // Username already used
+			 * bb.putInt(Opcode.SIGNUP_ERR.op); } else { // Username not used
+			 * bb.putInt(Opcode.SIGNUP_OK.op); System.out.println("ADDED: " +
+			 * Opcode.SIGNUP_OK); server.map.put(sc.getRemoteAddress(), name);
+			 * server.userMap.put(name, bp.getField("password")); queueMessage(bb); bb =
+			 * null; } break;
+			 * 
+			 * case LOGIN: System.out.println("Login..."); name = bp.getField("username");
+			 * String password = bp.getField("password"); System.out.println("name: " +
+			 * name); System.out.println("pwd: " + password);
+			 * System.out.println(server.userMap.get(name)); if
+			 * (server.userMap.containsKey(name)) { // Username exists if
+			 * (server.userMap.get(name).equals(password)) {
+			 * server.map.remove(getKey(name)); server.map.put(sc.getRemoteAddress(), name);
+			 * bb.putInt(Opcode.LOGIN_OK.op); } else { bb.putInt(Opcode.LOGIN_ERR.op); } }
+			 * else { bb.putInt(Opcode.LOGIN_ERR.op); } queueMessage(bb); bb = null; break;
+			 * 
+			 * case MESSAGE: name = server.map.get(sc.getRemoteAddress()); name =
+			 * "username: " + name + "\r\n"; ByteBuffer headerToSend =
+			 * ByteBuffer.allocate(Byte.BYTES + Integer.BYTES);
+			 * bb.putInt(Opcode.MESSAGEBROADCAST.op); ByteBuffer bodyToSend =
+			 * ByteBuffer.allocate(BUFFER_SIZE);
+			 * 
+			 * // add content to body's buffer bodyToSend.put(UTF8.encode(name));
+			 * bodyToSend.put(UTF8.encode("data: " + bp.getField("data")));
+			 * bodyToSend.flip();
+			 * 
+			 * // Add content to header's buffer headerToSend.put(endFlag == true ? (byte) 1
+			 * : (byte) 0); headerToSend.putInt(bodyToSend.remaining());
+			 * headerToSend.flip();
+			 * 
+			 * // Add header and body to ByteBuffer's response
+			 * bb.putInt(headerToSend.limit()); bb.put(headerToSend); bb.put(bodyToSend);
+			 * break;
+			 * 
+			 * default: break;
+			 * 
+			 * }
+			 */
 
-			case MESSAGE:
-				name = server.map.get(sc.getRemoteAddress());
-				name = "username: " + name + "\r\n";
-				ByteBuffer headerToSend = ByteBuffer.allocate(Byte.BYTES + Integer.BYTES);
-				bb.putInt(Opcode.MESSAGEBROADCAST.op);
-				ByteBuffer bodyToSend = ByteBuffer.allocate(BUFFER_SIZE);
-
-				// add content to body's buffer
-				bodyToSend.put(UTF8.encode(name));
-				bodyToSend.put(UTF8.encode("data: " + bp.getField("data")));
-				bodyToSend.flip();
-
-				// Add content to header's buffer
-				headerToSend.put(endFlag == true ? (byte) 1 : (byte) 0);
-				headerToSend.putInt(bodyToSend.remaining());
-				headerToSend.flip();
-
-				// Add header and body to ByteBuffer's response
-				bb.putInt(headerToSend.limit());
-				bb.put(headerToSend);
-				bb.put(bodyToSend);
-				break;
-
-			default:
-				break;
-
-			}
-			return bb;
 		}
 
 		/**
@@ -379,8 +356,8 @@ public class ServerMatou {
 	private final ServerSocketChannel serverSocketChannel;
 	private final Selector selector;
 	private final Set<SelectionKey> selectedKeys;
-	private final HashMap<SocketAddress, String> map; // Address => Username
-	private final HashMap<String, String> userMap; // Username => password
+	final HashMap<SocketAddress, String> map; // Address => Username
+	final HashMap<String, String> userMap; // Username => password
 
 	private final static Charset UTF8 = Charset.forName("utf-8");
 

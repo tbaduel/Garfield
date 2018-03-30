@@ -20,17 +20,18 @@ public class ByteReader implements Reader {
 		if (state == State.DONE || state == State.ERROR) {
 			throw new IllegalStateException();
 		}
-		bb.flip();
+		//bb.flip();
 		try {
 			if (bb.remaining() >= Byte.BYTES) {
 				value = bb.get();
 				state = State.DONE;
+				System.out.println("\t\tByte : " + value);
 				return ProcessStatus.DONE;
 			} else {
 				return ProcessStatus.REFILL;
 			}
 		} finally {
-			bb.compact();
+			//bb.compact();
 		}
 
 	}

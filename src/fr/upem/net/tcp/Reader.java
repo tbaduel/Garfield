@@ -1,5 +1,6 @@
 package fr.upem.net.tcp;
 
+import java.io.IOException;
 
 public interface Reader {
 
@@ -7,7 +8,7 @@ public interface Reader {
 
     public ProcessStatus process();
 
-    public Object get();
+    public Object get() throws IOException ;
 
     public void reset();
 

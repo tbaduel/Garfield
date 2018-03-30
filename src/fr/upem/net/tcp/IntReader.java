@@ -19,17 +19,18 @@ public class IntReader implements Reader {
         if (state==State.DONE || state==State.ERROR) {
             throw new IllegalStateException();
         }
-        bb.flip();
+        //bb.flip();
         try {
             if (bb.remaining() >= Integer.BYTES) {
                 value = bb.getInt();
                 state = State.DONE;
+                System.out.println("\t\tInt = " + value);
                 return ProcessStatus.DONE;
             } else {
                 return ProcessStatus.REFILL;
             }
         } finally {
-            bb.compact();
+            //bb.compact();
         }
 
 

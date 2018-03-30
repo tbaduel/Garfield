@@ -57,5 +57,10 @@ public class Message {
 		return ret;
 	}
 	
+	public String toString() {
+		return "[" + op + ", "  + body + "]";
+		
+	}
+	
 	
 }

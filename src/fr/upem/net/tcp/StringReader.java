@@ -27,7 +27,7 @@ public class StringReader implements Reader {
 		if (state == State.DONE || state == State.ERROR) {
 			throw new IllegalStateException();
 		}
-		bb.flip();
+		//bb.flip();
 		try {
 			if (state == State.WAITING_SIZE) {
 				if (bb.remaining() >= Integer.BYTES) {
@@ -42,7 +42,7 @@ public class StringReader implements Reader {
 					ByteBuffer tmp = readBytes(size);
 					tmp.flip();
 					value = UTF8.decode(tmp).toString();
-					System.out.println("\tstr = " + value);
+					System.out.println("\t\tstr = " + value);
 					state = State.DONE;
 					return ProcessStatus.DONE;
 				}
@@ -55,7 +55,7 @@ public class StringReader implements Reader {
 
 		} finally {
 			System.out.println("Sors du String Reader");
-			bb.compact();
+			//bb.compact();
 		}
 		return ProcessStatus.REFILL;
 
