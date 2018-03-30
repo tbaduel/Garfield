@@ -1,27 +1,34 @@
 package fr.upem.net.tcp;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 
 public class Message {
 	private static final Charset UTF8 = Charset.forName("UTF-8");
-	private String bp;
+	private String body;
+	private BodyParser bp;
 	private int headerSize;
 	private int op;
 	private byte endFlag;
 	private final static int SIZE = 2 * Integer.BYTES + Byte.BYTES;
 	private ByteBuffer bodyBuffer;
 	
-	public Message(String bp, int headerSize, int op, byte endFlag) {
-		this.bp = bp;
+	public Message(String body, int headerSize, int op, byte endFlag) throws IOException {
+		this.body = body;
+		this.bp = ServerReader.readBody(body);
 		this.headerSize = headerSize;
 		this.op = op;
 		this.endFlag = endFlag;
-		this.bodyBuffer = UTF8.encode(bp);
+		this.bodyBuffer = UTF8.encode(body);
 	}
 
-	public String getBp() {
+	public BodyParser getBp() {
 		return bp;
+	}
+	
+	public String getBody() {
+		return body;
 	}
 
 	public int getHeaderSize() {
