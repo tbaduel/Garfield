@@ -41,7 +41,12 @@ public class ServerReader {
 				continue;
 			}
 			String[] keyvalue = line.split(": ");
-			map.merge(keyvalue[0].toLowerCase(), keyvalue[1], (x, y) -> String.join("; ", x, y));
+			
+			if (keyvalue.length > 1 && keyvalue[0].length() > 0 && keyvalue[1].length() > 0) {
+				map.merge(keyvalue[0].toLowerCase(), keyvalue[1], (x, y) -> String.join("; ", x, y));
+			} else {
+				map.merge(keyvalue[0].toLowerCase(), "", (x, y) -> String.join("; ", x, y));
+			}
 		}
 		
 		return BodyParser.create(size, map);

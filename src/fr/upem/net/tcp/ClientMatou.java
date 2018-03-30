@@ -1,19 +1,15 @@
 package fr.upem.net.tcp;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.nio.channels.SelectionKey;
+import java.nio.channels.AsynchronousCloseException;
 import java.nio.channels.Selector;
-import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
 import java.util.Calendar;
-import java.util.Date;
 import java.util.Scanner;
-import java.util.Set;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class ClientMatou {
@@ -21,17 +17,11 @@ public class ClientMatou {
 	public static final Charset UTF8 = Charset.forName("UTF-8");
 	public static final int BUFFER_SIZE = 1024;
 	public static final Logger log = Logger.getLogger(ClientMatou.class.getName());
-	private final ServerSocketChannel serverSocketChannel;
-	private final Selector selector;
-	private final Set<SelectionKey> selectedKeys;
 	public final SocketChannel sc;
 	public String username;
+	public static final Object monitor = new Object();
 
 	public ClientMatou(SocketChannel sc) throws IOException {
-		serverSocketChannel = ServerSocketChannel.open();
-		serverSocketChannel.bind(new InetSocketAddress(8084));//change
-		selector = Selector.open();
-		selectedKeys = selector.selectedKeys();
 		this.sc = sc;
 	}
 
@@ -50,42 +40,13 @@ public class ClientMatou {
 		// status badly formed, need to restructure code (opcode added in bodyparser as
 		// status)
 		ByteBuffer receive = ByteBuffer.allocate(Integer.BYTES);
-		boolean test = readFully(sc, receive);
-		if (test) {
+		if (readFully(sc, receive)) {
 			receive.flip();
 			int id = receive.getInt();
 			if (id > 99) {
 				// if id > 99 then its ack
 				return BodyParser.createAck(id);
 			}
-			ByteBuffer headerSizeBuff = ByteBuffer.allocate(Integer.BYTES);
-			if (readFully(sc, headerSizeBuff)) {
-				headerSizeBuff.flip();
-				int headerSize = headerSizeBuff.getInt();
-				// check if > 0 ?
-
-				ByteBuffer header = ByteBuffer.allocate(headerSize);
-				if (readFully(sc, header)) {
-					header.flip();
-					byte endFlag = header.get();
-					int bodySize = header.getInt();
-					ByteBuffer body = ByteBuffer.allocate(bodySize);
-					if (endFlag == (byte) 1) {
-						if (readFully(sc, body)) {
-							body.flip();
-							String bodyString = UTF8.decode(body).toString();
-							// meant to use body json efficiently
-							BodyParser bp = ServerReader.readBody(bodyString);
-							bp.addField("status", String.valueOf(id));
-							return bp;
-						}
-					} // else receive chunks?
-				}
-			}
-		} else {
-			// Debug ONLY
-			receive.flip();
-			System.err.println("ERROR!");
 		}
 		return null;
 	}
@@ -117,33 +78,29 @@ public class ClientMatou {
 		req.flip();
 		sc.write(req);
 		// add other opcodes for ACK etc
-		BodyParser bp = receiveServer();
-		boolean ret = false;
-		Opcode status = Opcode.valueOfId(Integer.parseInt(bp.getField("status")));
-		switch (status) {
-		case WHISP_OK:
-			ret = true;
-			System.out.println("whisp mode");
-			break;
-		case LOGIN_OK:
-			ret = true;
-			System.out.println("You're now online.");
-			break;
-		case LOGIN_ERR:
-			ret = false;
-			System.out.println("Incorrect credentials.");
-			break;
-		case SIGNUP_OK:
-			ret = true;
-			System.out.println("Registration complete.");
-			break;
-		case MESSAGEBROADCAST:
-			ret = true;
-			Calendar date = Calendar.getInstance();
-			System.out.println("[" + date.get(Calendar.HOUR) + ":" + date.get(Calendar.MINUTE) + "]" + bp.getField("username") + ": " + bp.getField("data"));
-			break;			
+		if (id == Opcode.LOGIN.op || id == Opcode.SIGNUP.op) {
+			BodyParser bp = receiveServer();
+			boolean ret = false;
+			Opcode status = Opcode.valueOfId(Integer.parseInt(bp.getField("status")));
+			switch (status) {
+			case LOGIN_OK:
+				ret = true;
+				System.out.println("You're now online.");
+				break;
+			case LOGIN_ERR:
+				ret = false;
+				System.out.println("Incorrect credentials.");
+				break;
+			case SIGNUP_OK:
+				ret = true;
+				System.out.println("Registration complete.");
+				break;
+			default:
+				break;
+			}
+			return ret;
 		}
-		return ret;
+		return true;
 	}
 
 	public boolean login(String login, String password, boolean newUser) throws IOException {
@@ -156,21 +113,61 @@ public class ClientMatou {
 		return requestServer(Opcode.LOGIN.op, data);
 	}
 
-/*	public void launch() throws IOException {
-		serverSocketChannel.configureBlocking(false);
-		serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
-		Set<SelectionKey> selectedKeys = selector.selectedKeys();
-		while (!Thread.interrupted()) {
-			printKeys();
-			System.out.println("Starting select");
-			selector.select();
-			System.out.println("Select finished");
-			printSelectedKey();
-			processSelectedKeys();
-			selectedKeys.clear();
+	public void receiveBroadcast() {
+		// int + int + (header) + (body)
+		// readfully ~ one by one
+		// status badly formed, need to restructure code (opcode added in bodyparser as
+		// status)
+		ByteBuffer receive = ByteBuffer.allocate(Integer.BYTES);
+		try {
+			while (!Thread.interrupted()) {
+				receive.clear();
+				boolean test = readFully(sc, receive);
+				if (test) {
+					receive.flip();
+					int id = receive.getInt();
+					if (id > 99) {
+						// if id > 99 then its ack
+						continue;
+					}
+					ByteBuffer headerSizeBuff = ByteBuffer.allocate(Integer.BYTES);
+					if (readFully(sc, headerSizeBuff)) {
+						headerSizeBuff.flip();
+						int headerSize = headerSizeBuff.getInt();
+						// check if > 0 ?
+
+						ByteBuffer header = ByteBuffer.allocate(headerSize);
+						if (readFully(sc, header)) {
+							header.flip();
+							byte endFlag = header.get();
+							int bodySize = header.getInt();
+							ByteBuffer body = ByteBuffer.allocate(bodySize);
+							if (endFlag == (byte) 1) {
+								if (readFully(sc, body)) {
+									body.flip();
+									String bodyString = UTF8.decode(body).toString();
+									// meant to use body json efficiently
+									BodyParser bp = ServerReader.readBody(bodyString);
+									if (id == Opcode.MESSAGEBROADCAST.op) {
+										Calendar date = Calendar.getInstance();
+										System.out
+												.println("[" + date.get(Calendar.HOUR) + ":" + date.get(Calendar.MINUTE)
+														+ "]" + bp.getField("username") + ": " + bp.getField("data"));
+									}
+
+								}
+							} // else receigve chunks?
+						}
+					}
+				}
+			}
+		} catch (AsynchronousCloseException e) {
+			// normal behaviour.
+			log.log(Level.INFO, "Sender stopped");
+		} catch (IOException e) {
+			log.log(Level.SEVERE, "Sender thread killed by IOException", e);
 		}
-	}*/
-	
+	}
 	/*
 	 * [18:27] tikko to localhost: salut les amis [18:27] tikko to localhost: /r
 	 * thomas [18:27] localhost to thomas: DEMANDE DE TIKKO DE MESSAGE PRIVE (O/N)
@@ -178,15 +175,22 @@ public class ClientMatou {
 	 * thomas: salut mon frere /f [nom] file /r [nom] whisper
 	 */
 
-	public void beginChat(Scanner scan) throws IOException {
-		//launch();
-		while (true) {
-			System.out.print("$> ");
-			String line = scan.nextLine();
-			ParserLine parser = ParserLine.parse(line);
-			executeAction(parser.opcode, parser.line);
+	public void beginChat(Scanner sc) throws IOException, InterruptedException {
+		boolean notEnded = true;
+		Thread reader = new Thread(this::receiveBroadcast);
+		reader.start();
+		while (notEnded) {
+			String line = sc.nextLine();
+
+			if (line.equals("/exit")) {
+				notEnded = false;
+			} else {
+				ParserLine parser = ParserLine.parse(line);
+				executeAction(parser.opcode, parser.line);
+			}
 
 		}
+		reader.join();
 	}
 
 	public void executeAction(Opcode op, String line) throws IOException {
@@ -202,7 +206,7 @@ public class ClientMatou {
 		}
 	}
 
-	public static void main(String args[]) {
+	public static void main(String args[]) throws InterruptedException {
 
 		try (Scanner sc = new Scanner(System.in); SocketChannel sock = SocketChannel.open();) {
 			sock.connect(new InetSocketAddress("localhost", 8083));
