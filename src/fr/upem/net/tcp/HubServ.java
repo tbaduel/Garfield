@@ -130,7 +130,12 @@ public class HubServ {
 		return bb;
 	}
 	
-	
+	/**
+	 * Get the address key corresponding to the username
+	 * @param server
+	 * @param username
+	 * @return
+	 */
 	private SocketAddress getKey(ServerMatou server, String username) {
 		Collection<SocketAddress> keys = server.map.keySet();
 		for (SocketAddress address : keys) {

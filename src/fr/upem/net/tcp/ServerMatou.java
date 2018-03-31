@@ -12,12 +12,13 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedList;
-import java.util.Map.Entry;
 import java.util.Queue;
+import java.util.Scanner;
 import java.util.Set;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -80,12 +81,11 @@ public class ServerMatou {
 				System.out.println(toSend);
 				System.out.println("BBIN :  " + bbin);
 				if (toSend != null) {
-					//toSend.flip();
+					// toSend.flip();
 					System.out.println(toSend);
 					if (msg.getOp() == Opcode.MESSAGE.op) { // Broadcast case
 						server.broadcast(toSend);
-					}
-					else {
+					} else {
 						System.out.println("Sending to client ...");
 						queueMessage(toSend);
 					}
@@ -95,105 +95,22 @@ public class ServerMatou {
 			} else {
 				System.out.println("not done");
 			}
-			/*
-			 * // get Opcode if (!opCodeReaded && bbin.remaining() >= Integer.BYTES) {
-			 * opCode = Opcode.valueOfId(bbin.getInt()); opCodeReaded = true;
-			 * System.out.println("bbinRemaing = " + bbin.remaining()); }
-			 * 
-			 * // get header size if (opCodeReaded && !headerSizeReaded && bbin.remaining()
-			 * >= Integer.BYTES) { // server.broadcast(bbin.getInt()); headerSize =
-			 * bbin.getInt(); headerSizeReaded = true; System.out.println("header size = " +
-			 * headerSize); System.out.println("bbinRemaing = " + bbin.remaining()); }
-			 * 
-			 * // get header if (headerSizeReaded && !headerReaded && bbin.remaining() >=
-			 * headerSize) { header = readBytes(headerSize); header.flip(); int pos =
-			 * header.position(); System.out.println("flag = " + header.get() + ", size = "
-			 * + header.getInt()); header.position(pos); endFlag = (header.get() == (byte) 1
-			 * ? true : false); messageSize = header.getInt(); headerReaded = true;
-			 * System.out.println("bbinRemaing = " + bbin.remaining()); }
-			 * 
-			 * // get body if (headerReaded && !messageReaded && bbin.remaining() >=
-			 * messageSize) { message = readBytes(messageSize);
-			 * System.out.println("message = " + message.toString()); opCodeReaded = false;
-			 * headerReaded = false; headerSizeReaded = false; messageReaded = false;
-			 * bbin.compact(); System.out.println("bbinRemaing = " + bbin.remaining());
-			 * ByteBuffer responseToBroadcast = messageProcessing(); if (responseToBroadcast
-			 * != null) { server.broadcast(responseToBroadcast); } } else bbin.compact();
-			 */
+
 			System.out.println("Endremaining = " + bbin.remaining());
 		}
 
+		/**
+		 * Process the message
+		 * 
+		 * @param msg
+		 * @return The buffer of the processed message
+		 * @throws IOException
+		 */
 		public ByteBuffer messageProcessing(Message msg) throws IOException {
-			// ByteBuffer bb = ByteBuffer.allocate(BUFFER_SIZE);
-			// message.flip();
-			// String bodyString = UTF8.decode(message).toString();
-			// System.out.println(bodyString);
-			// Hub.login
-			// Hub.signup
-			// Hub.message
-			// Hub.action(LOGIN)
 
 			HubServ hub = new HubServ();
 			return hub.ServerExecute(msg, server, sc);
-			/*
-			 * BodyParser bp = msg.getBp(); String name; switch
-			 * (Opcode.valueOfId(msg.getOp())) { case SIGNUP:
-			 * System.out.println("Signin..."); name = bp.getField("username"); if
-			 * (server.map.containsValue(name)) { // Username already used
-			 * bb.putInt(Opcode.SIGNUP_ERR.op); } else { // Username not used
-			 * bb.putInt(Opcode.SIGNUP_OK.op); System.out.println("ADDED: " +
-			 * Opcode.SIGNUP_OK); server.map.put(sc.getRemoteAddress(), name);
-			 * server.userMap.put(name, bp.getField("password")); queueMessage(bb); bb =
-			 * null; } break;
-			 * 
-			 * case LOGIN: System.out.println("Login..."); name = bp.getField("username");
-			 * String password = bp.getField("password"); System.out.println("name: " +
-			 * name); System.out.println("pwd: " + password);
-			 * System.out.println(server.userMap.get(name)); if
-			 * (server.userMap.containsKey(name)) { // Username exists if
-			 * (server.userMap.get(name).equals(password)) {
-			 * server.map.remove(getKey(name)); server.map.put(sc.getRemoteAddress(), name);
-			 * bb.putInt(Opcode.LOGIN_OK.op); } else { bb.putInt(Opcode.LOGIN_ERR.op); } }
-			 * else { bb.putInt(Opcode.LOGIN_ERR.op); } queueMessage(bb); bb = null; break;
-			 * 
-			 * case MESSAGE: name = server.map.get(sc.getRemoteAddress()); name =
-			 * "username: " + name + "\r\n"; ByteBuffer headerToSend =
-			 * ByteBuffer.allocate(Byte.BYTES + Integer.BYTES);
-			 * bb.putInt(Opcode.MESSAGEBROADCAST.op); ByteBuffer bodyToSend =
-			 * ByteBuffer.allocate(BUFFER_SIZE);
-			 * 
-			 * // add content to body's buffer bodyToSend.put(UTF8.encode(name));
-			 * bodyToSend.put(UTF8.encode("data: " + bp.getField("data")));
-			 * bodyToSend.flip();
-			 * 
-			 * // Add content to header's buffer headerToSend.put(endFlag == true ? (byte) 1
-			 * : (byte) 0); headerToSend.putInt(bodyToSend.remaining());
-			 * headerToSend.flip();
-			 * 
-			 * // Add header and body to ByteBuffer's response
-			 * bb.putInt(headerToSend.limit()); bb.put(headerToSend); bb.put(bodyToSend);
-			 * break;
-			 * 
-			 * default: break;
-			 * 
-			 * }
-			 */
 
-		}
-
-		/**
-		 * Get the key of HashMap via value return null if not found
-		 * 
-		 * @param value
-		 */
-		private SocketAddress getKey(String username) {
-			Collection<SocketAddress> keys = server.map.keySet();
-			for (SocketAddress address : keys) {
-				if (server.map.get(address).equals(username)) {
-					return address;
-				}
-			}
-			return null;
 		}
 
 		/**
@@ -358,6 +275,8 @@ public class ServerMatou {
 	private final Set<SelectionKey> selectedKeys;
 	final HashMap<SocketAddress, String> map; // Address => Username
 	final HashMap<String, String> userMap; // Username => password
+	final BlockingQueue<String> consoleQueue;
+	private Thread console;
 
 	private final static Charset UTF8 = Charset.forName("utf-8");
 
@@ -368,6 +287,7 @@ public class ServerMatou {
 		selectedKeys = selector.selectedKeys();
 		map = new HashMap<>();
 		userMap = new HashMap<>();
+		consoleQueue = new LinkedBlockingQueue<>();
 	}
 
 	public void launch() throws IOException {
@@ -379,11 +299,66 @@ public class ServerMatou {
 			System.out.println("Starting select");
 			selector.select();
 			System.out.println("Select finished");
+			executeCommand();
 			printSelectedKey();
 			processSelectedKeys();
 			selectedKeys.clear();
 		}
 	}
+	
+	private void executeCommand() {
+		while (consoleQueue.size() > 0) {
+			switch (consoleQueue.poll()) {
+			case "INFO":
+				System.out.println("Connected : " + infoActive() + " client(s)");
+				break;
+			case "SHUTDOWN":
+				System.out.println("Shutdown...");
+				shutdown();
+				Thread.currentThread().interrupt();
+				console.interrupt();
+				break;
+			case "SHUTDOWNNOW":
+				System.out.println("ShutDown NOW !");
+				shutdownNow();
+				Thread.currentThread().interrupt();
+				console.interrupt();
+				break;
+			default:
+				System.out.println("unkown command");
+			}
+		}
+	}
+	
+	public int infoActive() {
+		int cpt = 0;
+		for(SelectionKey key : selector.keys()) {
+			if (key.isValid() && !key.isAcceptable()) {
+				cpt ++;
+			}
+		}
+		return cpt;
+	}
+	
+	public void shutdownNow() {
+		boolean done = false;
+		while (!done) {
+			done = true;
+			for(SelectionKey key : selector.keys()) {
+				if (key.isValid() && !key.isAcceptable()) {
+					if (((Context) key.attachment()).sc.isConnected()){
+						((Context) key.attachment()).silentlyClose();
+					}
+				}
+			}
+		}
+	}
+
+	public void shutdown() {
+		System.out.println("Shutdown request ...");
+	}
+	
+	
 
 	private void processSelectedKeys() throws IOException {
 		for (SelectionKey key : selectedKeys) {
@@ -430,7 +405,13 @@ public class ServerMatou {
 			usage();
 			return;
 		}
-		new ServerMatou(Integer.parseInt(args[0])).launch();
+		ServerMatou matou = new ServerMatou(Integer.parseInt(args[0]));
+		matou.console = new Thread(()->{
+			consoleRunner(matou);
+		});
+		matou.console.start();
+		matou.launch();
+		
 	}
 
 	private static void usage() {
@@ -515,4 +496,26 @@ public class ServerMatou {
 			list.add("WRITE");
 		return String.join(" and ", list);
 	}
+
+	private static void consoleRunner(ServerMatou server) {
+		String command;
+		try (Scanner scan = new Scanner(System.in)) {
+			while (!Thread.interrupted()) {
+				if (scan.hasNextLine()) {
+					command = scan.nextLine();
+					System.out.println("Command = " +command);
+					try {
+						server.consoleQueue.put(command);
+					} catch (InterruptedException e) {
+						logger.info("Server stopped");
+					}
+					
+					server.selector.wakeup();
+
+				}
+			}
+		}
+
+	}
+
 }
