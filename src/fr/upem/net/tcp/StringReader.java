@@ -33,7 +33,7 @@ public class StringReader implements Reader {
 				if (bb.remaining() >= Integer.BYTES) {
 					size = bb.getInt();
 					state = State.WAITING_STRING;
-					System.out.println("\tSize = " + size);
+					//System.out.println("\tSize = " + size);
 				}
 			}
 
@@ -42,19 +42,19 @@ public class StringReader implements Reader {
 					ByteBuffer tmp = readBytes(size);
 					tmp.flip();
 					value = UTF8.decode(tmp).toString();
-					System.out.println("\t\tstr = " + value);
+					//System.out.println("\t\tstr = " + value);
 					state = State.DONE;
 					return ProcessStatus.DONE;
 				}
 			} else
 				return ProcessStatus.REFILL;
-			System.out.println("after REfill");
+			//System.out.println("after REfill");
 
 		} catch (IOException e) {
 			// Error case
 
 		} finally {
-			System.out.println("Sors du String Reader");
+			//System.out.println("Sors du String Reader");
 			//bb.compact();
 		}
 		return ProcessStatus.REFILL;

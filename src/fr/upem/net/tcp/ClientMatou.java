@@ -4,13 +4,21 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousCloseException;
+import java.nio.channels.SelectableChannel;
+import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
+import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
-import java.util.Calendar;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.Queue;
 import java.util.Scanner;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import fr.upem.net.tcp.Reader.ProcessStatus;
 
 public class ClientMatou {
 
@@ -20,9 +28,23 @@ public class ClientMatou {
 	public final SocketChannel sc;
 	public String username;
 	public static final Object monitor = new Object();
+	private final Selector selector;
+	private final Set<SelectionKey> selectedKeys;
+	private SelectionKey uniqueKey;
+	final private ByteBuffer bbin = ByteBuffer.allocateDirect(BUFFER_SIZE);
+	final private ByteBuffer bbout = ByteBuffer.allocateDirect(BUFFER_SIZE);
+	private boolean closed = false;
+	final private MessageReader messageReader = new MessageReader(bbin);
+	private final HubClient hubClient = new HubClient();
+	final private Queue<ByteBuffer> queue = new LinkedList<>();
+	private Scanner scan;
 
-	public ClientMatou(SocketChannel sc) throws IOException {
+	public ClientMatou(SocketChannel sc, Scanner scan) throws IOException {
 		this.sc = sc;
+		this.scan = scan;
+		sc.connect(new InetSocketAddress("localhost", 8083));
+		selector = Selector.open();
+		selectedKeys = selector.selectedKeys();
 	}
 
 	static boolean readFully(SocketChannel sc, ByteBuffer bb) throws IOException {
@@ -34,96 +56,60 @@ public class ClientMatou {
 		return false;
 	}
 
-	public BodyParser receiveServer() throws IOException {
-		// int + int + (header) + (body)
-		// readfully ~ one by one
-		// status badly formed, need to restructure code (opcode added in bodyparser as
-		// status)
+	/**
+	 * 
+	 * @return id (opcode)
+	 * @throws IOException
+	 */
+	public int receiveServer() throws IOException {
 		ByteBuffer receive = ByteBuffer.allocate(Integer.BYTES);
 		if (readFully(sc, receive)) {
 			receive.flip();
 			int id = receive.getInt();
 			if (id > 99) {
 				// if id > 99 then its ack
-				return BodyParser.createAck(id);
+				return id;
 			}
 		}
-		return null;
+		return -1;
 	}
 
-	public boolean requestServer(int id, String dataBody) throws IOException {
-		ByteBuffer req = ByteBuffer.allocate(BUFFER_SIZE);
-		ByteBuffer body = UTF8.encode(dataBody);
-		byte endMsg = (byte) 1;
-		// check if body is too large, if it is, then put chunk mode
-		if (!body.hasRemaining()) {
-			// TODO
-			// while endMsg == 0, send chunks until endMsg == 1
-		}
-		ByteBuffer header = ByteBuffer.allocate(64);
-		req.clear();
-		header.clear();
-		// make header before adding id of packet
-		header.put(endMsg);
-		header.putInt(body.remaining());
-		header.flip();
-		// Add id of packet
-		req.putInt(id);
-		// Add size of header
-		req.putInt(header.remaining());
-		// Add header to req
-		req.put(header);
-		// Add body to req
-		req.put(body);
-		req.flip();
-		sc.write(req);
-		// add other opcodes for ACK etc
-		if (id == Opcode.LOGIN.op || id == Opcode.SIGNUP.op) {
-			BodyParser bp = receiveServer();
-			boolean ret = false;
-			Opcode status = Opcode.valueOfId(Integer.parseInt(bp.getField("status")));
-			switch (status) {
-			case LOGIN_OK:
-				ret = true;
-				System.out.println("You're now online.");
-				break;
-			case LOGIN_ERR:
-				ret = false;
-				System.out.println("Incorrect credentials.");
-				break;
-			case SIGNUP_OK:
-				ret = true;
-				System.out.println("Registration complete.");
-				break;
-			default:
-				break;
-			}
-			return ret;
-		}
-		return true;
+	public void requestServer(int id, String dataBody) throws IOException {
+		ByteBuffer req = HubClient.formatBuffer(sc, dataBody, id);
+		sendServer(req);
+	}
+
+	/**
+	 * Write the buffer to the server
+	 * 
+	 * @param send
+	 * @throws IOException
+	 */
+	public void sendServer(ByteBuffer send) throws IOException {
+		sc.write(send);
 	}
 
 	public boolean login(String login, String password, boolean newUser) throws IOException {
 		String data = "username: " + login + "\r\npassword: " + password + "\r\n";
-		if (newUser == true && requestServer(Opcode.SIGNUP.op, data)) {
-			// inscription
-			return true;
+		ByteBuffer send = null;
+		if (newUser == true) {
+			send = HubClient.formatBuffer(sc, data, Opcode.SIGNUP.op);
+		} else {
+			send = HubClient.formatBuffer(sc, data, Opcode.LOGIN.op);
 		}
-		// login
-		return requestServer(Opcode.LOGIN.op, data);
+		sendServer(send);
+		int status = receiveServer();
+		return status == Opcode.SIGNUP_OK.op || status == Opcode.LOGIN_OK.op;
+
 	}
 
 	public void receiveBroadcast() {
-		// int + int + (header) + (body)
-		// readfully ~ one by one
-		// status badly formed, need to restructure code (opcode added in bodyparser as
-		// status)
+		HubClient hub = new HubClient();
 		ByteBuffer receive = ByteBuffer.allocate(Integer.BYTES);
 		try {
 			while (!Thread.interrupted()) {
 				receive.clear();
-				boolean test = readFully(sc, receive);
-				if (test) {
+				if (readFully(sc, receive)) {
 					receive.flip();
 					int id = receive.getInt();
 					if (id > 99) {
@@ -134,8 +120,8 @@ public class ClientMatou {
 					if (readFully(sc, headerSizeBuff)) {
 						headerSizeBuff.flip();
 						int headerSize = headerSizeBuff.getInt();
-						// check if > 0 ?
-
+						if (headerSize <= 0)
+							continue;
 						ByteBuffer header = ByteBuffer.allocate(headerSize);
 						if (readFully(sc, header)) {
 							header.flip();
@@ -146,15 +132,8 @@ public class ClientMatou {
 								if (readFully(sc, body)) {
 									body.flip();
 									String bodyString = UTF8.decode(body).toString();
-									// meant to use body json efficiently
 									BodyParser bp = ServerReader.readBody(bodyString);
-									if (id == Opcode.MESSAGEBROADCAST.op) {
-										Calendar date = Calendar.getInstance();
-										System.out
-												.println("[" + date.get(Calendar.HOUR) + ":" + date.get(Calendar.MINUTE)
-														+ "]" + bp.getField("username") + ": " + bp.getField("data"));
-									}
-
+									hub.executeClient(Opcode.valueOfId(id), bp);
 								}
 							} // else receigve chunks?
 						}
@@ -175,42 +154,154 @@ public class ClientMatou {
 	 * thomas: salut mon frere /f [nom] file /r [nom] whisper
 	 */
 
-	public void beginChat(Scanner sc) throws IOException, InterruptedException {
-		boolean notEnded = true;
-		Thread reader = new Thread(this::receiveBroadcast);
-		reader.start();
-		while (notEnded) {
-			String line = sc.nextLine();
-
-			if (line.equals("/exit")) {
-				notEnded = false;
-			} else {
+	public void beginChat() {
+		try {
+			while (!Thread.interrupted()) {
+				String line = scan.nextLine();
 				ParserLine parser = ParserLine.parse(line);
-				executeAction(parser.opcode, parser.line);
-			}
+				ByteBuffer req = HubClient.formatBuffer(sc, parser.line, parser.opcode.op);
+				queue.add(req);
+				processOut();
+				updateInterestOps();
+				selector.wakeup();
+				/*
+				 * if (line.equals("/exit")) { notEnded = false; } else { ParserLine parser =
+				 * ParserLine.parse(line); executeAction(parser.opcode, parser.line); }
+				 */
 
+			}
+		} catch (IOException e) {
+			log.severe("IOException !!");
+		}
+
+	}
+
+	public void executeAction(Opcode op, String line) throws IOException {
+		requestServer(op.op, line);
+	}
+
+	private void processSelectedKeys() throws IOException {
+		for (SelectionKey key : selectedKeys) {
+			//System.out.println(key.isValid() ? "VALID KEY !" : "NOT VALID KEY !");
+			if (key.isValid() && key.isConnectable()) {
+				doConnect();
+			}
+			if (key.isValid() && key.isWritable()) {
+				doWrite();
+			}
+			if (key.isValid() && key.isReadable()) {
+				doRead();
+			}
+			
+		}
+	}
+
+	private void updateInterestOps() {
+		// TODO
+		int newInterestOps = 0;
+		if (!closed && bbin.hasRemaining()) {
+			System.out.println("READ MODE");
+			newInterestOps |= SelectionKey.OP_READ;
+		}
+		if (bbout.position() != 0) {
+			System.out.println("WRITE MODE");
+			newInterestOps |= SelectionKey.OP_WRITE;
+		}
+		if (newInterestOps == 0) {
+			silentlyClose();
+		} else
+			uniqueKey.interestOps(newInterestOps);
+
+	}
+
+
+	/**
+	 * Try to fill bbout from the message queue
+	 *
+	 */
+	private void processOut() {
+		// TODO
+		while (bbout.remaining() >= Integer.BYTES && queue.size() > 0) {
+			ByteBuffer a = queue.poll();
+			// a.flip();
+			bbout.put(a);
+		}
+	}
+
+	private void processIn() throws IOException {
+		bbin.flip();
+		ProcessStatus ps = messageReader.process();
+		if (ps == ProcessStatus.DONE) {
+			Message msg = messageReader.get();
+			hubClient.executeClient(Opcode.valueOfId(msg.getOp()), msg.getBp());
+			messageReader.reset();
+			bbin.compact();
+		} else {
+			System.out.println("not done");
+		}
+	}
+	
+	private void doRead() throws IOException {
+		if (sc.read(bbin) == -1) {
+			log.info("Closing connection.");
+			closed = true;
+		}
+		processIn();
+		updateInterestOps();
+	}
+
+	private void doWrite() throws IOException {
+		// dowrite ne s'executera pas tant que l'utilisateur n'aura pas ecrit sur
+		// l'entrÃ©e standard
+		// (en gros tant que bbout ne sera pas rempli par l'autre thread.)
+		bbout.flip();
+		bbout.position(0);
+		sc.write(bbout);
+		bbout.compact();
+		updateInterestOps();
+
+	}
+
+	private void doConnect() throws IOException {
+		if (!sc.finishConnect()) {
+			return;
+		}
+		System.out.println("Change mode");
+		updateInterestOps();
+		System.out.println("Changed");
+	}
+	
+	
+
+	public void launch() throws IOException, InterruptedException {
+		sc.configureBlocking(false);
+	    uniqueKey=sc.register(selector, SelectionKey.OP_CONNECT);
+	    Set<SelectionKey> selectedKeys = selector.selectedKeys();
+		Thread reader = new Thread(this::beginChat);
+		reader.start();
+		//updateInterestOps(); sinon on reçoit rien au début
+		doConnect();
+		while (!Thread.interrupted()) {
+			selector.select();
+			processSelectedKeys();
+			selectedKeys.clear();
 		}
 		reader.join();
 	}
 
-	public void executeAction(Opcode op, String line) throws IOException {
-		switch (op) {
-		case MESSAGE:
-			requestServer(Opcode.MESSAGE.op, line);
-			break;
-		case REQUEST:
-			requestServer(Opcode.REQUEST.op, line);
-			break;
-		default:
-			break;
+	private void silentlyClose() {
+		try {
+			System.out.println("Closing...");
+			sc.close();
+		} catch (IOException e) {
+			// ignore exception
 		}
 	}
 
 	public static void main(String args[]) throws InterruptedException {
 
 		try (Scanner sc = new Scanner(System.in); SocketChannel sock = SocketChannel.open();) {
-			sock.connect(new InetSocketAddress("localhost", 8083));
-			ClientMatou cm = new ClientMatou(sock);
+			ClientMatou cm = new ClientMatou(sock, sc);
 			boolean auth = false;
 			boolean newUser = false;
 			String login = null;
@@ -224,8 +315,13 @@ public class ClientMatou {
 				System.out.print("Password: ");
 				password = sc.nextLine();
 				auth = cm.login(login, password, newUser);
+				if (!auth) {
+					System.out.println("Invalid credentials or already registered login.");
+				}
 			}
-			cm.beginChat(sc);
+			System.out.println("Welcome, " + login + " !");
+			cm.launch();
+			// cm.beginChat(sc);
 
 		} catch (IOException e) {
 			log.severe("IOException, terminating client: " + e.getMessage());

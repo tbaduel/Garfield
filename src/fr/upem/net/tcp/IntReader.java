@@ -24,7 +24,7 @@ public class IntReader implements Reader {
             if (bb.remaining() >= Integer.BYTES) {
                 value = bb.getInt();
                 state = State.DONE;
-                System.out.println("\t\tInt = " + value);
+                //System.out.println("\t\tInt = " + value);
                 return ProcessStatus.DONE;
             } else {
                 return ProcessStatus.REFILL;

@@ -25,7 +25,6 @@ public class ByteReader implements Reader {
 			if (bb.remaining() >= Byte.BYTES) {
 				value = bb.get();
 				state = State.DONE;
-				System.out.println("\t\tByte : " + value);
 				return ProcessStatus.DONE;
 			} else {
 				return ProcessStatus.REFILL;
