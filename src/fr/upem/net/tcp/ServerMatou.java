@@ -37,18 +37,16 @@ public class ServerMatou {
 		private boolean closed = false;
 
 		/* Try to read smthng */
-		private boolean opCodeReaded = false;
-		private boolean headerSizeReaded = false;
-		private boolean headerReaded = false;
-		private boolean messageReaded = false;
-
-		private boolean endFlag = false;
-
-		private Opcode opCode;
-		private int headerSize = 0;
-		private int messageSize = 0;
-		private ByteBuffer header;
-		private ByteBuffer message;
+		/*
+		 * private boolean opCodeReaded = false; private boolean headerSizeReaded =
+		 * false; private boolean headerReaded = false; private boolean messageReaded =
+		 * false;
+		 * 
+		 * private boolean endFlag = false;
+		 * 
+		 * private Opcode opCode; private int headerSize = 0; private int messageSize =
+		 * 0; private ByteBuffer header; private ByteBuffer message;
+		 */
 
 		final private MessageReader messageReader = new MessageReader(bbin);
 
@@ -164,9 +162,15 @@ public class ServerMatou {
 				key.interestOps(newInterestOps);
 
 		}
-
+		
+		
+		/**
+		 * Close the socketChannel to the current Context.
+		 * Note that it remove the connection from the server map connection
+		 */
 		private void silentlyClose() {
 			try {
+				server.map.remove(sc.getRemoteAddress());
 				sc.close();
 			} catch (IOException e) {
 				// ignore exception
@@ -217,7 +221,8 @@ public class ServerMatou {
 
 		/**
 		 * @param size
-		 * @return a ByteBuffer in write-mode containing size bytes read on the socket
+		 * @return a ByteBuffer in write-mode containing size bytes read on the buffer
+		 *         in
 		 * @throws IOException
 		 *             IOException is the connection is closed before all bytes could be
 		 *             read
@@ -252,7 +257,6 @@ public class ServerMatou {
 	 * @param msg
 	 */
 	private void broadcast(ByteBuffer msg) {
-		// TODO
 		System.out.println("BROADCASTING ...");
 		if (msg == null)
 			return;
@@ -305,7 +309,7 @@ public class ServerMatou {
 			selectedKeys.clear();
 		}
 	}
-	
+
 	private void executeCommand() {
 		while (consoleQueue.size() > 0) {
 			switch (consoleQueue.poll()) {
@@ -315,39 +319,46 @@ public class ServerMatou {
 			case "SHUTDOWN":
 				System.out.println("Shutdown...");
 				shutdown();
-				Thread.currentThread().interrupt();
 				console.interrupt();
+				Thread.currentThread().interrupt();
 				break;
 			case "SHUTDOWNNOW":
 				System.out.println("ShutDown NOW !");
 				shutdownNow();
-				Thread.currentThread().interrupt();
 				console.interrupt();
+				Thread.currentThread().interrupt();
 				break;
 			default:
 				System.out.println("unkown command");
 			}
 		}
 	}
-	
+
 	public int infoActive() {
 		int cpt = 0;
-		for(SelectionKey key : selector.keys()) {
-			if (key.isValid() && !key.isAcceptable()) {
-				cpt ++;
+		Set<SelectionKey> selectionKeySet = selector.keys();
+		for (SelectionKey key : selectionKeySet) {
+			SelectableChannel channel = key.channel();
+			if (!(channel instanceof ServerSocketChannel)) {
+				cpt++;
 			}
 		}
 		return cpt;
 	}
-	
+
 	public void shutdownNow() {
+		// TODO
 		boolean done = false;
 		while (!done) {
 			done = true;
-			for(SelectionKey key : selector.keys()) {
-				if (key.isValid() && !key.isAcceptable()) {
-					if (((Context) key.attachment()).sc.isConnected()){
+			for (SelectionKey key : selector.keys()) {
+				SelectableChannel channel = key.channel();
+				if (!(channel instanceof ServerSocketChannel) && (((Context) key.attachment()).sc != null)) {
+					if (((Context) key.attachment()).sc.isOpen()) {
+						done = false;
+						logger.info("Disconnect client");
 						((Context) key.attachment()).silentlyClose();
+						System.out.println(((Context) key.attachment()).sc.isConnected());
 					}
 				}
 			}
@@ -355,10 +366,16 @@ public class ServerMatou {
 	}
 
 	public void shutdown() {
-		System.out.println("Shutdown request ...");
+		// TODO
+		logger.info("Shutdown requested ...");
+		for (SelectionKey key : selector.keys()) {
+			SelectableChannel channel = key.channel();
+			if (channel instanceof ServerSocketChannel) {
+				silentlyClose(key);
+				return;
+			}
+		}
 	}
-	
-	
 
 	private void processSelectedKeys() throws IOException {
 		for (SelectionKey key : selectedKeys) {
@@ -366,6 +383,10 @@ public class ServerMatou {
 				doAccept(key);
 			}
 			try {
+				if (!key.isValid() && key.attachment() != null) {
+					System.out.println("Remove" + ((Context) key.attachment()).sc.getRemoteAddress() );
+					map.remove(((Context) key.attachment()).sc.getRemoteAddress());
+				}
 				if (key.isValid() && key.isWritable()) {
 					((Context) key.attachment()).doWrite();
 				}
@@ -380,7 +401,6 @@ public class ServerMatou {
 	}
 
 	private void doAccept(SelectionKey key) throws IOException {
-		// TODO
 		SocketChannel sc = serverSocketChannel.accept();
 		if (sc == null)
 			return; // the selector gave a bad hint
@@ -406,12 +426,12 @@ public class ServerMatou {
 			return;
 		}
 		ServerMatou matou = new ServerMatou(Integer.parseInt(args[0]));
-		matou.console = new Thread(()->{
+		matou.console = new Thread(() -> {
 			consoleRunner(matou);
 		});
 		matou.console.start();
 		matou.launch();
-		
+
 	}
 
 	private static void usage() {
@@ -503,17 +523,13 @@ public class ServerMatou {
 			while (!Thread.interrupted()) {
 				if (scan.hasNextLine()) {
 					command = scan.nextLine();
-					System.out.println("Command = " +command);
-					try {
-						server.consoleQueue.put(command);
-					} catch (InterruptedException e) {
-						logger.info("Server stopped");
-					}
-					
+					System.out.println("Command = " + command);
+					server.consoleQueue.put(command);
 					server.selector.wakeup();
-
 				}
 			}
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
 		}
 
 	}

@@ -60,7 +60,6 @@ public class HubServ {
 			try {
 				server.map.put(sc.getRemoteAddress(), name);
 			} catch (IOException e) {
-				
 				return null;
 			}
 			server.userMap.put(name, msg.getBp().getField("password"));
@@ -81,14 +80,21 @@ public class HubServ {
 		System.out.println(server.userMap.get(name));
 		if (server.userMap.containsKey(name)) { 				// Username exists
 			if (server.userMap.get(name).equals(password)) {
-				server.map.remove(getKey(server,name));
 				try {
-					server.map.put(sc.getRemoteAddress(), name);
+					if (server.map.containsValue(name)){
+						System.out.println(" *******  ALREADY LOGGED ********");
+						bb.putInt(Opcode.LOGIN_ERR.op);
+					}
+					else {
+						server.map.remove(getKey(server,name));
+						server.map.put(sc.getRemoteAddress(), name);
+						bb.putInt(Opcode.LOGIN_OK.op);
+					}
 				} catch (IOException e) {
 					System.err.println("IOException, closing...");
 					return null;
 				}
-				bb.putInt(Opcode.LOGIN_OK.op);
+				
 			} else {
 				bb.putInt(Opcode.LOGIN_ERR.op);
 			}
