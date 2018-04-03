@@ -64,7 +64,6 @@ public class MessageReader implements Reader {
 				endFlag = (byte) bRead.get();
 				bRead.reset();
 				state = State.WAITING_BODY;
-				System.out.println("FLAG READ");
 			}
 		}
 		//System.out.println("Remaining : "+ bb.remaining());
