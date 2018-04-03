@@ -10,7 +10,6 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -26,7 +25,7 @@ import fr.upem.net.tcp.Reader.ProcessStatus;
 
 public class ServerMatou {
 
-	static private class Context {
+	public static class Context {
 
 		final private SelectionKey key;
 		final private SocketChannel sc;
@@ -83,7 +82,12 @@ public class ServerMatou {
 					System.out.println(toSend);
 					if (msg.getOp() == Opcode.MESSAGE.op) { // Broadcast case
 						server.broadcast(toSend);
-					} else {
+						
+					}else if (msg.getOp() == Opcode.REQUEST.op ||msg.getOp() == Opcode.WHISP_OK.op) {
+						//TODO
+						//Temporary do nothing here, check HubServer
+					}
+					else {				
 						System.out.println("Sending to client ...");
 						queueMessage(toSend);
 					}
@@ -113,11 +117,11 @@ public class ServerMatou {
 
 		/**
 		 * Add a message to the message queue, tries to fill bbOut and updateInterestOps
+		 *	The message is a ByteBuffer in write mode
 		 *
 		 * @param msg
 		 */
-		private void queueMessage(ByteBuffer msg) {
-			// TODO
+		public void queueMessage(ByteBuffer msg) {
 			queue.add(msg);
 			processOut();
 			updateInterestOps();
@@ -128,7 +132,6 @@ public class ServerMatou {
 		 *
 		 */
 		private void processOut() {
-			// TODO
 			while (bbout.remaining() >= Integer.BYTES && queue.size() > 0) {
 				System.out.println("remaining bbout " + bbout.remaining());
 				ByteBuffer a = queue.poll();
@@ -148,7 +151,6 @@ public class ServerMatou {
 		 */
 
 		private void updateInterestOps() {
-			// TODO
 			int newInterestOps = 0;
 			if (!closed && bbin.hasRemaining()) {
 				newInterestOps |= SelectionKey.OP_READ;
@@ -187,7 +189,6 @@ public class ServerMatou {
 		 */
 
 		private void doRead() throws IOException {
-			// TODO
 			int read;
 			if ((read = sc.read(bbin)) == -1) {
 				logger.info("closing");
@@ -208,7 +209,6 @@ public class ServerMatou {
 		 */
 
 		private void doWrite() throws IOException {
-			// TODO
 			bbout.flip();
 			System.out.println("ID to send = " + bbout.getInt());
 			bbout.position(0);
@@ -219,37 +219,32 @@ public class ServerMatou {
 			updateInterestOps();
 		}
 
-		/**
-		 * @param size
-		 * @return a ByteBuffer in write-mode containing size bytes read on the buffer
-		 *         in
-		 * @throws IOException
-		 *             IOException is the connection is closed before all bytes could be
-		 *             read
-		 */
-		public ByteBuffer readBytes(int size) throws IOException {
-			ByteBuffer bb = ByteBuffer.allocate(size);
-			System.out.println("Allocate size = " + size);
-			// bbin.flip();
-			if (bbin.hasRemaining()) {
-				logger.info("pos = " + bbin.position() + ", limit = " + bbin.limit());
-				int pos = bbin.position() + size;
-				int limit = bbin.limit();
-				bbin.limit(pos);
-				bb.put(bbin);
-				// bbin.position(pos);
-				bbin.limit(limit);
-
-			}
-			// logger.info("BEFORE COMPACT : pos = " +bbin.position()+ ", limit = " +
-			// bbin.limit());
-			// bbin.compact();
-			// logger.info("AFTER COMPACT : pos = " +bbin.position()+ ", limit = " +
-			// bbin.limit());
-			return bb;
-		}
-
 	}
+	
+	/**
+	 * Get the Context corresponding to the ip
+	 * @param ip
+	 * @return The context
+	 */
+	public Context getContextFromIP(SocketAddress ip) {
+		for (SelectionKey key : selector.keys()) {
+			SelectableChannel channel = key.channel();
+			if(!(channel instanceof ServerSocketChannel)) {
+				SocketChannel sc = (SocketChannel) channel;
+				try {
+					if (sc.getRemoteAddress().equals(ip)) {
+						return ((Context) key.attachment());
+					}
+				} catch (IOException e) {
+					return null;
+				}
+				
+			}
+		}
+		return null;
+	}
+	
+	
 
 	/**
 	 * Add a message to all connected clients queue
@@ -282,7 +277,7 @@ public class ServerMatou {
 	final BlockingQueue<String> consoleQueue;
 	private Thread console;
 
-	private final static Charset UTF8 = Charset.forName("utf-8");
+	//private final static Charset UTF8 = Charset.forName("utf-8");
 
 	public ServerMatou(int port) throws IOException {
 		serverSocketChannel = ServerSocketChannel.open();
@@ -346,7 +341,7 @@ public class ServerMatou {
 	}
 
 	public void shutdownNow() {
-		// TODO
+		//TODO
 		boolean done = false;
 		while (!done) {
 			done = true;

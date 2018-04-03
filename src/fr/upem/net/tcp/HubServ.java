@@ -8,6 +8,8 @@ import java.nio.charset.Charset;
 import java.util.Collection;
 import java.util.HashMap;
 
+import fr.upem.net.tcp.ServerMatou.Context;
+
 public class HubServ {
 	private static final Charset UTF8 = Charset.forName("utf-8");
 	private final HashMap<Opcode, ServerFunction > map  = new HashMap<>();
@@ -17,6 +19,9 @@ public class HubServ {
 		map.put(Opcode.LOGIN, this::login);
 		map.put(Opcode.SIGNUP, this::signup);
 		map.put(Opcode.MESSAGE, this::message);
+		map.put(Opcode.REQUEST, this::requestPrivate);
+		map.put(Opcode.WHISP_OK, this::whispOk );
+		map.put(Opcode.WHISP_REFUSED, this::whispRefused);
 		
 	}
 	
@@ -135,6 +140,43 @@ public class HubServ {
 		
 		return bb;
 	}
+	
+	
+	private ByteBuffer requestPrivate(Message msg, ServerMatou server, SocketChannel sc) {
+		ByteBuffer bb = ByteBuffer.allocate(BUFFER_SIZE);
+		
+		String name = msg.getBp().getField("user_requested");
+		SocketAddress ip = getKey(server, name);
+		
+		// Prepare request
+		if (ip == null) {
+			bb.putInt(Opcode.WHISP_ERR.op);
+			//TODO JSON CASE
+			bb.put(UTF8.encode(name));
+		}
+		else {
+			Context toSend = server.getContextFromIP(ip);
+			bb.putInt(Opcode.REQUEST.op);
+			bb.put(UTF8.encode(name));
+			//TODO
+			toSend.queueMessage(bb);
+		}
+		
+		return bb;
+	}
+	
+	
+	private ByteBuffer whispOk(Message msg, ServerMatou server, SocketChannel sc) {
+		
+		return null;
+	}
+	
+	private ByteBuffer whispRefused(Message msg, ServerMatou server, SocketChannel sc) {
+		
+		return null;
+	}
+	
+	
 	
 	/**
 	 * Get the address key corresponding to the username
