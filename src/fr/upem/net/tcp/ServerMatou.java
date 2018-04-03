@@ -319,8 +319,8 @@ public class ServerMatou {
 			case "SHUTDOWN":
 				System.out.println("Shutdown...");
 				shutdown();
-				console.interrupt();
-				Thread.currentThread().interrupt();
+				//console.interrupt();
+				//Thread.currentThread().interrupt();
 				break;
 			case "SHUTDOWNNOW":
 				System.out.println("ShutDown NOW !");
@@ -336,8 +336,7 @@ public class ServerMatou {
 
 	public int infoActive() {
 		int cpt = 0;
-		Set<SelectionKey> selectionKeySet = selector.keys();
-		for (SelectionKey key : selectionKeySet) {
+		for (SelectionKey key : selector.keys()) {
 			SelectableChannel channel = key.channel();
 			if (!(channel instanceof ServerSocketChannel)) {
 				cpt++;
@@ -518,9 +517,9 @@ public class ServerMatou {
 	}
 
 	private static void consoleRunner(ServerMatou server) {
-		String command;
+		String command = "";
 		try (Scanner scan = new Scanner(System.in)) {
-			while (!Thread.interrupted()) {
+			while (!Thread.interrupted() && !command.equals("SHUTDOWNNOW")) {
 				if (scan.hasNextLine()) {
 					command = scan.nextLine();
 					System.out.println("Command = " + command);
