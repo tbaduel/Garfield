@@ -3,19 +3,14 @@ package fr.upem.net.tcp;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.nio.channels.AsynchronousCloseException;
-import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
-import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.Queue;
 import java.util.Scanner;
 import java.util.Set;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import fr.upem.net.tcp.Reader.ProcessStatus;
@@ -33,7 +28,6 @@ public class ClientMatou {
 	private SelectionKey uniqueKey;
 	final private ByteBuffer bbin = ByteBuffer.allocateDirect(BUFFER_SIZE);
 	final private ByteBuffer bbout = ByteBuffer.allocateDirect(BUFFER_SIZE);
-	private boolean closed = false;
 	final private MessageReader messageReader = new MessageReader(bbin);
 	private final HubClient hubClient = new HubClient();
 	final private Queue<ByteBuffer> queue = new LinkedList<>();
@@ -103,50 +97,7 @@ public class ClientMatou {
 
 	}
 
-	public void receiveBroadcast() {
-		HubClient hub = new HubClient();
-		ByteBuffer receive = ByteBuffer.allocate(Integer.BYTES);
-		try {
-			while (!Thread.interrupted()) {
-				receive.clear();
-				if (readFully(sc, receive)) {
-					receive.flip();
-					int id = receive.getInt();
-					if (id > 99) {
-						// if id > 99 then its ack
-						continue;
-					}
-					ByteBuffer headerSizeBuff = ByteBuffer.allocate(Integer.BYTES);
-					if (readFully(sc, headerSizeBuff)) {
-						headerSizeBuff.flip();
-						int headerSize = headerSizeBuff.getInt();
-						if (headerSize <= 0)
-							continue;
-						ByteBuffer header = ByteBuffer.allocate(headerSize);
-						if (readFully(sc, header)) {
-							header.flip();
-							byte endFlag = header.get();
-							int bodySize = header.getInt();
-							ByteBuffer body = ByteBuffer.allocate(bodySize);
-							if (endFlag == (byte) 1) {
-								if (readFully(sc, body)) {
-									body.flip();
-									String bodyString = UTF8.decode(body).toString();
-									BodyParser bp = ServerReader.readBody(bodyString);
-									hub.executeClient(Opcode.valueOfId(id), bp);
-								}
-							} // else receigve chunks?
-						}
-					}
-				}
-			}
-		} catch (AsynchronousCloseException e) {
-			// normal behaviour.
-			log.log(Level.INFO, "Sender stopped");
-		} catch (IOException e) {
-			log.log(Level.SEVERE, "Sender thread killed by IOException", e);
-		}
-	}
+	
 	/*
 	 * [18:27] tikko to localhost: salut les amis [18:27] tikko to localhost: /r
 	 * thomas [18:27] localhost to thomas: DEMANDE DE TIKKO DE MESSAGE PRIVE (O/N)
@@ -176,13 +127,9 @@ public class ClientMatou {
 
 	}
 
-	public void executeAction(Opcode op, String line) throws IOException {
-		requestServer(op.op, line);
-	}
 
 	private void processSelectedKeys() throws IOException {
 		for (SelectionKey key : selectedKeys) {
-			//System.out.println(key.isValid() ? "VALID KEY !" : "NOT VALID KEY !");
 			if (key.isValid() && key.isConnectable()) {
 				doConnect();
 			}
@@ -197,14 +144,11 @@ public class ClientMatou {
 	}
 
 	private void updateInterestOps() {
-		// TODO
 		int newInterestOps = 0;
-		if (!closed && bbin.hasRemaining()) {
-			System.out.println("READ MODE");
+		if (bbin.hasRemaining()) {
 			newInterestOps |= SelectionKey.OP_READ;
 		}
 		if (bbout.position() != 0) {
-			System.out.println("WRITE MODE");
 			newInterestOps |= SelectionKey.OP_WRITE;
 		}
 		if (newInterestOps == 0) {
@@ -220,10 +164,8 @@ public class ClientMatou {
 	 *
 	 */
 	private void processOut() {
-		// TODO
 		while (bbout.remaining() >= Integer.BYTES && queue.size() > 0) {
 			ByteBuffer a = queue.poll();
-			// a.flip();
 			bbout.put(a);
 		}
 	}
@@ -244,7 +186,8 @@ public class ClientMatou {
 	private void doRead() throws IOException {
 		if (sc.read(bbin) == -1) {
 			log.info("Closing connection.");
-			closed = true;
+			silentlyClose();
+			return ;
 		}
 		processIn();
 		updateInterestOps();
@@ -266,9 +209,7 @@ public class ClientMatou {
 		if (!sc.finishConnect()) {
 			return;
 		}
-		System.out.println("Change mode");
 		updateInterestOps();
-		System.out.println("Changed");
 	}
 	
 	
@@ -279,7 +220,6 @@ public class ClientMatou {
 	    Set<SelectionKey> selectedKeys = selector.selectedKeys();
 		Thread reader = new Thread(this::beginChat);
 		reader.start();
-		//updateInterestOps(); sinon on reçoit rien au début
 		doConnect();
 		while (!Thread.interrupted()) {
 			selector.select();
@@ -321,7 +261,6 @@ public class ClientMatou {
 			}
 			System.out.println("Welcome, " + login + " !");
 			cm.launch();
-			// cm.beginChat(sc);
 
 		} catch (IOException e) {
 			log.severe("IOException, terminating client: " + e.getMessage());
