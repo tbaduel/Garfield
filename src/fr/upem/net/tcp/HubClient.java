@@ -19,7 +19,7 @@ public class HubClient {
 	
 	public HubClient() {
 		clientMap.put(Opcode.MESSAGEBROADCAST, this::messageBroadcast);
-		
+		clientMap.put(Opcode.WHISP_OK, this::authorizeIpAddress);
 	}
 
 	/**
@@ -42,7 +42,7 @@ public class HubClient {
 		return req;
 	}
 	
-	public void messageBroadcast(BodyParser bp) {
+	public void messageBroadcast(BodyParser bp, ClientMatou client) {
 		Date date = new Date();
 		Calendar calendar = GregorianCalendar.getInstance();
 		calendar.setTime(date);
@@ -50,11 +50,24 @@ public class HubClient {
 						+ "]\033[1;32m" + bp.getField("username") + "\033[0;m: " + bp.getField("data"));
 	}
 
+	public void receiveIpAddress(BodyParser bp, ClientMatou client) {
+		System.out.println("Received IP to connect to: " + bp.getField("ip") + ":" + bp.getField("port"));
+		if (!client.removeConnectedUser(bp.getField("username"))) {
+			System.out.println("No user found to connect to.");
+			return;
+		}
+		//and connect here.
+	}
 	
-	public void executeClient(Opcode op, BodyParser bp) {
+	public void authorizeIpAddress(BodyParser bp, ClientMatou client) {
+		System.out.println("]\033[1;32m" + bp.getField("username") + "\033[0;m wants to communicate with you, to authorize requests, type /y " + bp.getField("username"));
+		client.addConnectedUser(bp.getField("username"));
+	}
+	
+	public void executeClient(Opcode op, BodyParser bp, ClientMatou client) {
 		ClientFunction function = clientMap.get(op);
 		if (function != null) {
-			function.apply(bp);
+			function.apply(bp, client);
 		}
 	}
 

@@ -7,8 +7,11 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Queue;
+import java.util.Random;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -32,15 +35,35 @@ public class ClientMatou {
 	private final HubClient hubClient = new HubClient();
 	final private Queue<ByteBuffer> queue = new LinkedList<>();
 	private Scanner scan;
-
-	public ClientMatou(SocketChannel sc, Scanner scan) throws IOException {
+	private List<String> connectedUsers = new ArrayList<>();
+	private final int port;
+	private final String address;
+	private final int token;
+	
+	public ClientMatou(SocketChannel sc, Scanner scan, int port, String address) throws IOException {
+		Random rand = new Random();
 		this.sc = sc;
 		this.scan = scan;
-		sc.connect(new InetSocketAddress("localhost", 8083));
+		this.port = port;
+		this.address = address;
+		sc.connect(new InetSocketAddress(address, port));
 		selector = Selector.open();
 		selectedKeys = selector.selectedKeys();
+		token = rand.nextInt(10000000);
+	}
+	
+	public int getToken() {
+		return token;
 	}
 
+	public String getAddress() {
+		return address;
+	}
+	
+	public int getPort() {
+		return port;
+	}
+	
 	static boolean readFully(SocketChannel sc, ByteBuffer bb) throws IOException {
 		while (sc.read(bb) != -1) {
 			if (!bb.hasRemaining()) {
@@ -99,21 +122,24 @@ public class ClientMatou {
 
 	
 	/*
-	 * [18:27] tikko to localhost: salut les amis [18:27] tikko to localhost: /r
-	 * thomas [18:27] localhost to thomas: DEMANDE DE TIKKO DE MESSAGE PRIVE (O/N)
-	 * [18:27] thomas to localhost: O /w thomas salut mon frere [18:27] tikko to
-	 * thomas: salut mon frere /f [nom] file /r [nom] whisper
+	 * [18:27] tikko to localhost: salut les amis
+	 * [18:27] tikko to localhost: /r thomas
+	 * [18:27] localhost to thomas: DEMANDE DE TIKKO DE MESSAGE PRIVE (O/N)
+	 * [18:27] thomas to localhost: O /w thomas salut mon frere
+	 * [18:27] tikko to thomas: salut mon frere /f [nom] file /r [nom] whisper
 	 */
 
 	public void beginChat() {
 		try {
 			while (!Thread.interrupted()) {
 				String line = scan.nextLine();
-				ParserLine parser = ParserLine.parse(line);
+				ParserLine parser = ParserLine.parse(line, this);
 				ByteBuffer req = HubClient.formatBuffer(sc, parser.line, parser.opcode.op);
 				queue.add(req);
 				processOut();
-				updateInterestOps();
+				if (!updateInterestOps()) {
+					return ;
+				}
 				selector.wakeup();
 				/*
 				 * if (line.equals("/exit")) { notEnded = false; } else { ParserLine parser =
@@ -143,7 +169,7 @@ public class ClientMatou {
 		}
 	}
 
-	private void updateInterestOps() {
+	private boolean updateInterestOps() {
 		int newInterestOps = 0;
 		if (bbin.hasRemaining()) {
 			newInterestOps |= SelectionKey.OP_READ;
@@ -153,9 +179,16 @@ public class ClientMatou {
 		}
 		if (newInterestOps == 0) {
 			silentlyClose();
-		} else
-			uniqueKey.interestOps(newInterestOps);
-
+		} else {
+			if (uniqueKey.isValid()) {
+				uniqueKey.interestOps(newInterestOps);
+			}
+			else {
+				System.out.println("Closing...");
+				return false;
+			}
+		}
+		return true;
 	}
 
 
@@ -175,7 +208,7 @@ public class ClientMatou {
 		ProcessStatus ps = messageReader.process();
 		if (ps == ProcessStatus.DONE) {
 			Message msg = messageReader.get();
-			hubClient.executeClient(Opcode.valueOfId(msg.getOp()), msg.getBp());
+			hubClient.executeClient(Opcode.valueOfId(msg.getOp()), msg.getBp(), this);
 			messageReader.reset();
 			bbin.compact();
 		} else {
@@ -193,6 +226,19 @@ public class ClientMatou {
 		updateInterestOps();
 	}
 
+	public void addConnectedUser(String user) {
+		connectedUsers.add(user);
+	}
+	
+	public boolean removeConnectedUser(String user) {
+		int i = connectedUsers.indexOf(user);
+		if (i == -1) {
+			return false;
+		}
+		connectedUsers.remove(i);
+		return true;
+	}
+	
 	private void doWrite() throws IOException {
 		// dowrite ne s'executera pas tant que l'utilisateur n'aura pas ecrit sur
 		// l'entrée standard
@@ -238,10 +284,19 @@ public class ClientMatou {
 		}
 	}
 
+	public static void usage() {
+		System.out.println("usage: java fr.upem.net.tcp.ClientMatou address port");
+	}
+	
 	public static void main(String args[]) throws InterruptedException {
-
+		
 		try (Scanner sc = new Scanner(System.in); SocketChannel sock = SocketChannel.open();) {
-			ClientMatou cm = new ClientMatou(sock, sc);
+			if (args.length != 2) {
+				usage();
+				return ;
+			}
+			int port = Integer.parseInt(args[1]);
+			ClientMatou cm = new ClientMatou(sock, sc, port, args[0]);
 			boolean auth = false;
 			boolean newUser = false;
 			String login = null;
