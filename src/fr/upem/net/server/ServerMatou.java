@@ -87,11 +87,19 @@ public class ServerMatou {
 						
 					}else if (msg.getOp() == Opcode.REQUEST.op) {
 						//TODO
-						int port = Integer.parseInt(msg.getBp().getField("port"));
-						String ip = msg.getBp().getField("ip");
-						Context contextDest = server.getContextFromIP(new InetSocketAddress(ip, port));
-						contextDest.queueMessage(toSend);
-						//Temporary do nothing here, check HubServer
+						Opcode opcode = Opcode.valueOfId(toSend.getInt());
+						toSend.position(0);
+						if (opcode == Opcode.WHISP_REQUEST){
+							int port = Integer.parseInt(msg.getBp().getField("port"));
+							String ip = msg.getBp().getField("ip");
+							Context contextDest = server.getContextFromIP(new InetSocketAddress(ip, port));
+							contextDest.queueMessage(toSend);
+						}
+						else if (opcode == Opcode.WHISP_ERR) {
+							queueMessage(toSend);
+						}
+						
+						
 					}
 					else {				
 						System.out.println("Sending to client ...");
