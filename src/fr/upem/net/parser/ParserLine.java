@@ -1,4 +1,7 @@
-package fr.upem.net.tcp;
+package fr.upem.net.parser;
+
+import fr.upem.net.client.ClientMatou;
+import fr.upem.net.other.Opcode;
 
 public class ParserLine {
 

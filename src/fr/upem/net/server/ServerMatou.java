@@ -1,4 +1,4 @@
-package fr.upem.net.tcp;
+package fr.upem.net.server;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -21,8 +21,9 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import fr.upem.net.tcp.Reader.ProcessStatus;
-import fr.upem.net.tcp.ServerMatou.Context;
+import fr.upem.net.other.Opcode;
+import fr.upem.net.reader.MessageReader;
+import fr.upem.net.reader.Reader.ProcessStatus;
 
 public class ServerMatou {
 

@@ -1,4 +1,4 @@
-package fr.upem.net.tcp;
+package fr.upem.net.client;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -10,6 +10,8 @@ import java.util.GregorianCalendar;
 import java.util.HashMap;
 
 import fr.upem.net.other.ColorText;
+import fr.upem.net.other.Opcode;
+import fr.upem.net.parser.BodyParser;
 
 public class HubClient {
 

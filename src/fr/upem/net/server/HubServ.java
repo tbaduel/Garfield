@@ -1,4 +1,4 @@
-package fr.upem.net.tcp;
+package fr.upem.net.server;
 
 import java.io.IOException;
 import java.net.SocketAddress;
@@ -8,7 +8,7 @@ import java.nio.charset.Charset;
 import java.util.Collection;
 import java.util.HashMap;
 
-import fr.upem.net.tcp.ServerMatou.Context;
+import fr.upem.net.other.Opcode;
 
 public class HubServ {
 	private static final Charset UTF8 = Charset.forName("utf-8");

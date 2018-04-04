@@ -1,4 +1,4 @@
-package fr.upem.net.tcp;
+package fr.upem.net.reader;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;

@@ -1,4 +1,4 @@
-package fr.upem.net.tcp;
+package fr.upem.net.server;
 
 import java.nio.channels.SocketChannel;
 import java.nio.ByteBuffer;

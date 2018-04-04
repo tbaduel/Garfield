@@ -1,8 +1,10 @@
-package fr.upem.net.tcp;
+package fr.upem.net.server;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
+
+import fr.upem.net.parser.BodyParser;
 
 public class Message {
 	private static final Charset UTF8 = Charset.forName("UTF-8");

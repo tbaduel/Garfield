@@ -1,4 +1,6 @@
-package fr.upem.net.tcp;
+package fr.upem.net.client;
+
+import fr.upem.net.parser.BodyParser;
 
 @FunctionalInterface
 public interface ClientFunction {

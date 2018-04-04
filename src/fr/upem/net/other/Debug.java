@@ -1,4 +1,4 @@
-package fr.upem.net.tcp;
+package fr.upem.net.other;
 
 import java.io.IOException;
 import java.nio.channels.SelectableChannel;

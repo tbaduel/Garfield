@@ -1,4 +1,4 @@
-package fr.upem.net.tcp;
+package fr.upem.net.other;
 
 public enum Opcode {
 	ERROR(-1), LOGIN(0), SIGNUP(1), MESSAGE(2), REQUEST(3), FILE(4), IPRESPONSE(98), MESSAGEBROADCAST(99), 
@@ -18,7 +18,7 @@ public enum Opcode {
 		return Integer.toString(op);
 	}
 	
-	static Opcode valueOfId(int id) {
+	public static Opcode valueOfId(int id) {
 	    for (Opcode opcode : values()) {
 	         int valueId = opcode.op;
 	         if (id == valueId) {

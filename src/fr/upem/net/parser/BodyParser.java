@@ -1,4 +1,4 @@
-package fr.upem.net.tcp;
+package fr.upem.net.parser;
 
 import java.io.IOException;
 //import java.util.Collections;
