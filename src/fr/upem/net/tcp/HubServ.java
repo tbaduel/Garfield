@@ -145,7 +145,9 @@ public class HubServ {
 	private ByteBuffer requestPrivate(Message msg, ServerMatou server, SocketChannel sc) {
 		ByteBuffer bb = ByteBuffer.allocate(BUFFER_SIZE);
 		
-		String name = msg.getBp().getField("user_requested");
+		String name = msg.getBp().getField("userReq");
+		System.out.println("name = [" + name + "]");
+		System.out.println(msg);
 		SocketAddress ip = getKey(server, name);
 		
 		// Prepare request

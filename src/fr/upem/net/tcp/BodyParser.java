@@ -30,11 +30,11 @@ public class BodyParser {
     }
     
     public void addField(String field, String value) {
-    	fields.put(field, value);
+    	fields.put(field.toLowerCase(), value);
     }
     
     public String getField(String field) {
-    	return fields.get(field);
+    	return fields.get(field.toLowerCase());
     }
     
     public int getSize() {

@@ -85,6 +85,7 @@ public class ServerMatou {
 						
 					}else if (msg.getOp() == Opcode.REQUEST.op ||msg.getOp() == Opcode.WHISP_OK.op) {
 						//TODO
+						
 						//Temporary do nothing here, check HubServer
 					}
 					else {				
