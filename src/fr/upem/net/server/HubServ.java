@@ -14,6 +14,8 @@ public class HubServ {
 	private static final Charset UTF8 = Charset.forName("utf-8");
 	private final HashMap<Opcode, ServerFunction> map = new HashMap<>();
 	static private int BUFFER_SIZE = 1_024;
+	public Opcode opcodeAction;
+	ByteBuffer headerToSend = ByteBuffer.allocate(5);
 
 	public HubServ() {
 		map.put(Opcode.LOGIN, this::login);
@@ -130,9 +132,24 @@ public class HubServ {
 
 		return bb;
 	}
-
-	private ByteBuffer requestPrivate(Message msg, ServerMatou server, SocketChannel sc) {
+	private ByteBuffer createMessage(Opcode opcode, byte flag, ByteBuffer body){
 		ByteBuffer bb = ByteBuffer.allocate(BUFFER_SIZE);
+		bb.putInt(opcode.op);
+		headerToSend.clear();
+		headerToSend.put(flag);
+		headerToSend.putInt(body.remaining());
+		headerToSend.flip();
+
+		// Add header and body to ByteBuffer's response
+		bb.putInt(headerToSend.limit());
+		bb.put(headerToSend);
+		bb.put(body);
+		
+		
+		return bb;
+	}
+	private ByteBuffer requestPrivate(Message msg, ServerMatou server, SocketChannel sc) {
+		ByteBuffer bb;
 
 		String name = msg.getBp().getField("userReq");
 		if (name == null) {
@@ -141,17 +158,17 @@ public class HubServ {
 			SocketAddress ip = getKey(server, name);
 			// Prepare request
 			if (ip == null) {
-				bb.putInt(Opcode.WHISP_ERR.op);
-				// TODO JSON CASE
-				bb.put(UTF8.encode("userReq: " + name + "\r\n"));
+				opcodeAction = (Opcode.WHISP_ERR);
+				ByteBuffer bodyToSend = UTF8.encode("userReq: " + name + "\r\n");
+				
+				bb = createMessage(Opcode.WHISP_ERR, (byte)1, bodyToSend);
 			} else {
-				// Context toSend = server.getContextFromIP(ip);
-				bb.putInt(Opcode.WHISP_REQUEST.op);
+				
+				opcodeAction = (Opcode.WHISP_REQUEST);
 				try {
 					String requester = server.map.get(sc.getRemoteAddress());
-					System.out.println();
-					bb.put(UTF8.encode("username: " + requester + "\r\n"));
-					
+					ByteBuffer bodyToSend = UTF8.encode("username: " + requester + "\r\n");
+					bb = createMessage(Opcode.WHISP_REQUEST,(byte)1, bodyToSend);
 				} catch (IOException e) {
 					return null;
 				}
@@ -163,7 +180,7 @@ public class HubServ {
 	}
 
 	private ByteBuffer whispOk(Message msg, ServerMatou server, SocketChannel sc) {
-
+		
 		return null;
 	}
 
@@ -187,6 +204,10 @@ public class HubServ {
 			}
 		}
 		return null;
+	}
+	
+	public Opcode getOpcodeAction() {
+		return opcodeAction;
 	}
 
 }

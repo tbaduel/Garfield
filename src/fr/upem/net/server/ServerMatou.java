@@ -11,6 +11,7 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Queue;
@@ -36,6 +37,8 @@ public class ServerMatou {
 		final private Queue<ByteBuffer> queue = new LinkedList<>();
 		final private ServerMatou server;
 		private boolean closed = false;
+		private Opcode opcodeAction;
+		
 		/* Try to read smthng */
 		/*
 		 * private boolean opCodeReaded = false; private boolean headerSizeReaded =
@@ -87,17 +90,25 @@ public class ServerMatou {
 						
 					}else if (msg.getOp() == Opcode.REQUEST.op) {
 						//TODO
-						Opcode opcode = Opcode.valueOfId(toSend.getInt());
-						toSend.position(0);
-						if (opcode == Opcode.WHISP_REQUEST){
+						System.out.println("Request : opcode = " + opcodeAction);
+						//toSend.position(0);
+						if (opcodeAction == Opcode.WHISP_OK){
+							/*
 							int port = Integer.parseInt(msg.getBp().getField("port"));
 							String ip = msg.getBp().getField("ip");
-							Context contextDest = server.getContextFromIP(new InetSocketAddress(ip, port));
+							*/
+							Context contextDest = server.getContextFromIP(server.getKeyFromMap(msg.getBp().getField("username")));
 							contextDest.queueMessage(toSend);
 						}
-						else if (opcode == Opcode.WHISP_ERR) {
+						else if (opcodeAction == Opcode.WHISP_REQUEST) {
+							Context contextDest = server.getContextFromIP(server.getKeyFromMap(msg.getBp().getField("userReq")));
+							System.out.println(contextDest.sc.getRemoteAddress().toString());
+							contextDest.queueMessage(toSend);
+						}
+						else if (opcodeAction == Opcode.WHISP_ERR) {
 							queueMessage(toSend);
 						}
+						opcodeAction = null;
 						
 						
 					}
@@ -125,7 +136,9 @@ public class ServerMatou {
 		public ByteBuffer messageProcessing(Message msg) throws IOException {
 
 			HubServ hub = new HubServ();
-			return hub.ServerExecute(msg, server, sc);
+			ByteBuffer tmp = hub.ServerExecute(msg, server, sc);
+			opcodeAction = hub.getOpcodeAction();
+			return tmp;
 
 		}
 
@@ -303,7 +316,16 @@ public class ServerMatou {
 		userMap = new HashMap<>();
 		consoleQueue = new LinkedBlockingQueue<>();
 	}
-
+	
+	private SocketAddress getKeyFromMap( String username) {
+		Collection<SocketAddress> keys = map.keySet();
+		for (SocketAddress address : keys) {
+			if (map.get(address).equals(username)) {
+				return address;
+			}
+		}
+		return null;
+	}
 	public void launch() throws IOException {
 		serverSocketChannel.configureBlocking(false);
 		serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
