@@ -16,7 +16,7 @@ public class Message {
 	
 	public Message(String body, int headerSize, int op, byte endFlag) throws IOException {
 		this.body = body;
-		this.bp = ServerReader.readBody(body);
+		this.bp = BodyParser.readBody(body);
 		this.headerSize = headerSize;
 		this.op = op;
 		this.endFlag = endFlag;
