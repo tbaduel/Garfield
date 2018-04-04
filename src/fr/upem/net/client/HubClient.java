@@ -2,6 +2,7 @@ package fr.upem.net.client;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
 import java.util.Calendar;
@@ -12,6 +13,7 @@ import java.util.HashMap;
 import fr.upem.net.other.ColorText;
 import fr.upem.net.other.Opcode;
 import fr.upem.net.parser.BodyParser;
+import fr.upem.net.server.ServerMatou.Context;
 
 public class HubClient {
 
@@ -63,9 +65,23 @@ public class HubClient {
 
 	public void receiveIpAddress(BodyParser bp, ClientMatou client) {
 		System.out.println("Received IP to connect to: " + bp.getField("ip") + ":" + bp.getField("port"));
-		if (!client.removeConnectedUser(bp.getField("username"))) {
+		if (!client.removeAwaitingUsers(bp.getField("username"))) {
 			System.out.println("No user found to connect to.");
 			return;
+		}
+		try {
+			/*client.ssc.register(client.selector, SelectionKey.OP_ACCEPT);
+			SocketChannel sc = client.ssc.accept();
+			if (sc == null)
+				return; 
+			sc.configureBlocking(false);
+			SelectionKey ClientKey = sc.register(client.selector, SelectionKey.OP_READ);
+			Context ct = new Context(client, ClientKey);
+			ct.setUserName(bp.getField("username"));
+			ClientKey.attach(ct);
+			client.addConnectedUsers(ClientKey);*/
+		} catch (IOException e) {
+			client.log.severe("IOException!!");
 		}
 		// and connect here.
 	}
@@ -73,7 +89,7 @@ public class HubClient {
 	public void authorizeIpAddress(BodyParser bp, ClientMatou client) {
 		System.out.println(ColorText.colorize(ColorText.GREEN, bp.getField("username"))
 				+ " wants to communicate with you, to authorize requests, type /y " + bp.getField("username"));
-		client.addConnectedUser(bp.getField("username"));
+		client.addAwaitingUsers(bp.getField("username"));
 	}
 
 	public void executeClient(Opcode op, BodyParser bp, ClientMatou client) {

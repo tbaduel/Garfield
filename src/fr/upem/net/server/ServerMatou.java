@@ -22,6 +22,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import fr.upem.net.client.ClientMatou;
 import fr.upem.net.other.Opcode;
 import fr.upem.net.reader.MessageReader;
 import fr.upem.net.reader.Reader.ProcessStatus;
@@ -36,8 +37,10 @@ public class ServerMatou {
 		final private ByteBuffer bbout = ByteBuffer.allocate(BUFFER_SIZE);
 		final private Queue<ByteBuffer> queue = new LinkedList<>();
 		final private ServerMatou server;
+		final private ClientMatou client;
 		private boolean closed = false;
 		private Opcode opcodeAction;
+		public String username; // added for whisper
 		
 		/* Try to read smthng */
 		/*
@@ -57,8 +60,22 @@ public class ServerMatou {
 			this.key = key;
 			this.sc = (SocketChannel) key.channel();
 			this.server = server;
+			this.client = null;
 		}
 		
+		public Context(ClientMatou client, SelectionKey key) {
+			//added for whisper
+			this.key = key;
+			this.sc = (SocketChannel) key.channel();
+			this.server = null;
+			this.client = client;
+		}
+		
+		
+		public void setUserName(String username) {
+			//added for whisper
+			this.username = username;
+		}
 
 		/**
 		 * Process the content of bbin

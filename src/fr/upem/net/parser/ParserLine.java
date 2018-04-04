@@ -7,10 +7,16 @@ public class ParserLine {
 
 	public final Opcode opcode;
 	public final String line;
+	public String userWhispered = null;
 	
 	private ParserLine(Opcode opcode, String line) {
 		this.opcode = opcode;
 		this.line = line;
+	}
+	
+	private ParserLine(Opcode opcode, String line, String username) {
+		this(opcode, line);
+		this.userWhispered = username;
 	}
 
 	public static ParserLine parse(String rawline, ClientMatou client) {
@@ -27,6 +33,14 @@ public class ParserLine {
 		if (line.equals("/r")) {
 			opcode = Opcode.REQUEST;
 			return new ParserLine(opcode, "userReq: " + trimline.substring(2).trim() +"\r\n");
+		}
+		else if (line.equals("/w")) {
+			opcode = Opcode.WHISP;
+			words = rawline.split("\\s+");
+			if (words.length < 3) {
+				return new ParserLine(Opcode.ERROR, "");
+			}
+			return new ParserLine(opcode, "data: " + words[2] + "\r\n", words[1]);
 		}
 		else if (line.equals("/f")) {
 			opcode = Opcode.FILE;

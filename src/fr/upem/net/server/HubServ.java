@@ -30,10 +30,11 @@ public class HubServ {
 	public ByteBuffer ServerExecute(Message msg, ServerMatou server, SocketChannel sc) throws IOException {
 		Opcode opcode = Opcode.valueOfId(msg.getOp());
 		ServerFunction fnt = map.get(opcode);
-		if (fnt != null) {
-			return fnt.apply(msg, server, sc);
+		if (fnt == null || (server == null && msg.getOp() != Opcode.MESSAGE.op)) { // added for whisper
+			return null;
 		}
-		return null;
+		
+		return fnt.apply(msg, server, sc);
 		/*
 		 * switch(opcode) { case SIGNUP: signup(msg, server, sc); break;
 		 * 
@@ -104,11 +105,15 @@ public class HubServ {
 
 	private ByteBuffer message(Message msg, ServerMatou server, SocketChannel sc) {
 		ByteBuffer bb = ByteBuffer.allocate(BUFFER_SIZE);
-		String name;
-		try {
-			name = server.map.get(sc.getRemoteAddress());
-		} catch (IOException e) {
-			return null;
+		String name = "temp";
+		//TODO
+		//get name
+		if (server != null) {
+			try {
+				name = server.map.get(sc.getRemoteAddress());
+			} catch (IOException e) {
+				return null;
+			}
 		}
 		name = "username: " + name + "\r\n";
 		ByteBuffer headerToSend = ByteBuffer.allocate(Byte.BYTES + Integer.BYTES);
