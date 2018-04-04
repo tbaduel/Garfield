@@ -146,10 +146,7 @@ public class HubServ {
 		ByteBuffer bb = ByteBuffer.allocate(BUFFER_SIZE);
 		
 		String name = msg.getBp().getField("userReq");
-		System.out.println("name = [" + name + "]");
-		System.out.println(msg);
 		SocketAddress ip = getKey(server, name);
-		
 		// Prepare request
 		if (ip == null) {
 			bb.putInt(Opcode.WHISP_ERR.op);
@@ -157,11 +154,11 @@ public class HubServ {
 			bb.put(UTF8.encode(name));
 		}
 		else {
-			Context toSend = server.getContextFromIP(ip);
+//			Context toSend = server.getContextFromIP(ip);
 			bb.putInt(Opcode.REQUEST.op);
 			bb.put(UTF8.encode(name));
 			//TODO
-			toSend.queueMessage(bb);
+//			toSend.queueMessage(bb);
 		}
 		
 		return bb;

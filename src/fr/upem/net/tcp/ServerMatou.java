@@ -22,6 +22,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import fr.upem.net.tcp.Reader.ProcessStatus;
+import fr.upem.net.tcp.ServerMatou.Context;
 
 public class ServerMatou {
 
@@ -34,7 +35,6 @@ public class ServerMatou {
 		final private Queue<ByteBuffer> queue = new LinkedList<>();
 		final private ServerMatou server;
 		private boolean closed = false;
-
 		/* Try to read smthng */
 		/*
 		 * private boolean opCodeReaded = false; private boolean headerSizeReaded =
@@ -54,6 +54,7 @@ public class ServerMatou {
 			this.sc = (SocketChannel) key.channel();
 			this.server = server;
 		}
+		
 
 		/**
 		 * Process the content of bbin
@@ -83,9 +84,12 @@ public class ServerMatou {
 					if (msg.getOp() == Opcode.MESSAGE.op) { // Broadcast case
 						server.broadcast(toSend);
 						
-					}else if (msg.getOp() == Opcode.REQUEST.op ||msg.getOp() == Opcode.WHISP_OK.op) {
+					}else if (msg.getOp() == Opcode.REQUEST.op) {
 						//TODO
-						
+						int port = Integer.parseInt(msg.getBp().getField("port"));
+						String ip = msg.getBp().getField("ip");
+						Context contextDest = server.getContextFromIP(new InetSocketAddress(ip, port));
+						contextDest.queueMessage(toSend);
 						//Temporary do nothing here, check HubServer
 					}
 					else {				
@@ -277,6 +281,7 @@ public class ServerMatou {
 	final HashMap<String, String> userMap; // Username => password
 	final BlockingQueue<String> consoleQueue;
 	private Thread console;
+
 
 	//private final static Charset UTF8 = Charset.forName("utf-8");
 
