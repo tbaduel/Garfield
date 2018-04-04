@@ -20,14 +20,13 @@ import java.util.Scanner;
 import java.util.Set;
 import java.util.logging.Logger;
 
+import fr.upem.net.other.Debug;
 import fr.upem.net.other.Opcode;
 import fr.upem.net.parser.ParserLine;
 import fr.upem.net.reader.MessageReader;
 import fr.upem.net.reader.Reader.ProcessStatus;
 import fr.upem.net.server.HubServ;
 import fr.upem.net.server.Message;
-import fr.upem.net.server.ServerMatou;
-import fr.upem.net.server.ServerMatou.Context;
 
 public class ClientMatou {
 
@@ -82,35 +81,15 @@ public class ClientMatou {
 
 		private void processIn() throws IOException {
 			bbin.flip();
-			System.out.println("BBIN :  " + bbin);
 			ProcessStatus ps = messageReader.process();
-			System.out.println(ps);
 			if (ps == ProcessStatus.DONE) {
 				Message msg = messageReader.get();
-				// ByteBuffer toSend = msg.toByteBuffer();
-				ByteBuffer toSend = messageProcessing(msg);
-				System.out.println(msg);
-				System.out.println(toSend);
-				System.out.println("BBIN :  " + bbin);
-				if (toSend != null) {
-					// toSend.flip();
-					System.out.println(toSend);
-					if (msg.getOp() == Opcode.MESSAGE.op) { // Broadcast case
-						//TODO
-						//send message
-					}
-					else {				
-						System.out.println("Sending to client ...");
-						queueMessage(toSend);
-					}
-					messageReader.reset();
-					bbin.compact();
-				}
+				client.hubClient.executeClient(Opcode.valueOfId(msg.getOp()), msg.getBp(), client);
+				messageReader.reset();
+				bbin.compact();
 			} else {
 				System.out.println("not done");
 			}
-
-			System.out.println("Endremaining = " + bbin.remaining());
 		}
 
 		/**
@@ -303,6 +282,8 @@ public class ClientMatou {
 	private final int token;
 	private String userWhispered = null; // for whispers
 	private boolean closed = false;
+	private Context serverContext;
+	
 	
 	public ClientMatou(SocketChannel sc, Scanner scan, int port, String address) throws IOException {
 		Random rand = new Random();
@@ -380,6 +361,7 @@ public class ClientMatou {
 		} else {
 			send = HubClient.formatBuffer(sc, data, Opcode.LOGIN.op);
 		}
+		send.flip();
 		sendServer(send);
 		int status = receiveServer();
 		return status == Opcode.SIGNUP_OK.op || status == Opcode.LOGIN_OK.op;
@@ -411,12 +393,14 @@ public class ClientMatou {
 					userWhispered = parser.userWhispered; // for whispers
 					serverQueue.add(req);
 				} else {
+					System.out.println("Request = " + req);
+					//serverContext.queueMessage(req);
 					queue.add(req);
 				}
-				processOut();
-				if (!updateInterestOps()) {
-					return;
-				}
+				//processOut();
+				//if (!updateInterestOps()) {
+				//	return;
+				//}
 				selector.wakeup();
 				/*
 				 * if (line.equals("/exit")) { notEnded = false; } else { ParserLine parser =
@@ -430,7 +414,7 @@ public class ClientMatou {
 
 	}
 
-
+	/*
 	private boolean updateInterestOps() {
 		int newInterestOps = 0;
 		if (bbin.hasRemaining()) {
@@ -452,17 +436,16 @@ public class ClientMatou {
 		}
 		return true;
 	}
-
+	*/
 
 	/**
 	 * Try to fill bbout from the message queue
 	 *
 	 */
-	private void processOut() {
+	private void fillBuffers() {
 		if (!queue.isEmpty()) {
-			while (bbout.remaining() >= Integer.BYTES && queue.size() > 0) {
-				ByteBuffer a = queue.poll();
-				bbout.put(a);
+			while (queue.size() > 0) {
+				serverContext.queueMessage(queue.poll());
 			}
 		}
 		else {
@@ -504,6 +487,7 @@ public class ClientMatou {
 		connectedClients.add(client);
 	}
 	
+	/*
 	private void doWrite() throws IOException {
 		// dowrite ne s'executera pas tant que l'utilisateur n'aura pas ecrit sur
 		// l'entrée standard
@@ -515,14 +499,16 @@ public class ClientMatou {
 		updateInterestOps();
 
 	}
+	*/
 
 	private void doConnect() throws IOException {
 		if (!sc.finishConnect()) {
 			return;
 		}
-		updateInterestOps();
+		serverContext.updateInterestOps();
 	}
 	
+	/*
 	private void doRead() throws IOException {
 		System.out.println("this doread closes: " + closed);
 		if (sc.read(bbin) == -1) {
@@ -533,6 +519,7 @@ public class ClientMatou {
 		processIn();
 		updateInterestOps();
 	}
+	*/
 	
 	private void doAccept(SelectionKey key) throws IOException {
 			SocketChannel sc = ssc.accept();
@@ -555,7 +542,9 @@ public class ClientMatou {
 				doConnect();
 			}
 			if (key.isValid() && key.isWritable()) {
+				System.out.println("Do Write");
 				((Context) key.attachment()).doWrite();
+				System.out.println("Do Write DONE");
 			}
 			if (key.isValid() && key.isReadable()) {
 				((Context) key.attachment()).doRead();
@@ -567,6 +556,8 @@ public class ClientMatou {
 	public void launch() throws IOException, InterruptedException {
 		sc.configureBlocking(false);
 	    uniqueKey=sc.register(selector, SelectionKey.OP_CONNECT);
+	    serverContext = new Context(this, uniqueKey);
+	    uniqueKey.attach(serverContext);
 	    Set<SelectionKey> selectedKeys = selector.selectedKeys();
 		Thread reader = new Thread(this::beginChat);
 		reader.start();
@@ -576,8 +567,11 @@ public class ClientMatou {
 				reader.join();
 				return ;
 			}
+			fillBuffers();
+			Debug.printKeys(selector);
 			System.out.println("Selecting keys");
 			selector.select();
+			Debug.printSelectedKey(selectedKeys);
 			processSelectedKeys();
 			selectedKeys.clear();
 		}

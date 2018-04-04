@@ -48,7 +48,7 @@ public class HubClient {
 		req.putInt(header.remaining());
 		req.put(header);
 		req.put(body);
-		req.flip();
+		//req.flip();
 		System.out.println(req);
 		return req;
 	}

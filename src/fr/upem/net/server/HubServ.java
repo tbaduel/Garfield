@@ -9,6 +9,7 @@ import java.util.Collection;
 import java.util.HashMap;
 
 import fr.upem.net.other.Opcode;
+import fr.upem.net.parser.BodyParser;
 
 public class HubServ {
 	private static final Charset UTF8 = Charset.forName("utf-8");
@@ -185,12 +186,16 @@ public class HubServ {
 	}
 
 	private ByteBuffer whispOk(Message msg, ServerMatou server, SocketChannel sc) {
-		return createMessage(Opcode.IPRESPONSE,(byte)1 ,UTF8.encode("username : test\n\r"));
+		BodyParser bp = msg.getBp();
+		String ip = bp.getField("ip");
+		String address = bp.getField("");
+		System.out.println(msg.getBody());
+		return createMessage(Opcode.IPRESPONSE,(byte)1 ,msg.getBodyBuffer());
 	}
 
 	private ByteBuffer whispRefused(Message msg, ServerMatou server, SocketChannel sc) {
-
-		return null;
+		return createMessage(Opcode.WHISP_REFUSED,(byte)1, UTF8.encode("username: " + msg.getBp().getField("username")));
+		
 	}
 
 	/**
