@@ -1,6 +1,7 @@
 package fr.upem.net.client;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
@@ -70,6 +71,10 @@ public class HubClient {
 			return;
 		}
 		try {
+			SocketChannel sc = SocketChannel.open();
+			sc.connect(new InetSocketAddress(bp.getField("ip"), Integer.parseInt(bp.getField("port"))));
+			sc.configureBlocking(false);
+			sc.register(client.selector, SelectionKey.OP_READ);
 			/*client.ssc.register(client.selector, SelectionKey.OP_ACCEPT);
 			SocketChannel sc = client.ssc.accept();
 			if (sc == null)
