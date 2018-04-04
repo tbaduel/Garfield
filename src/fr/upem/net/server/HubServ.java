@@ -181,7 +181,7 @@ public class HubServ {
 
 	private ByteBuffer whispOk(Message msg, ServerMatou server, SocketChannel sc) {
 		
-		return null;
+		return createMessage(Opcode.WHISP_OK, (byte)1, UTF8.encode("dada: dodo"));
 	}
 
 	private ByteBuffer whispRefused(Message msg, ServerMatou server, SocketChannel sc) {

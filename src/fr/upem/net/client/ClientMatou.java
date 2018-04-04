@@ -225,6 +225,7 @@ public class ClientMatou {
 	}
 	
 	private void doRead() throws IOException {
+		System.out.println("this doread closes: " + closed);
 		if (sc.read(bbin) == -1) {
 			log.info("Closing connection.");
 			silentlyClose();
