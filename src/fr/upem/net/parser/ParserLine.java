@@ -11,7 +11,6 @@ public class ParserLine {
 	private ParserLine(Opcode opcode, String line) {
 		this.opcode = opcode;
 		this.line = line;
-		System.out.println("line: [" + line + "]");
 	}
 
 	public static ParserLine parse(String rawline, ClientMatou client) {
@@ -26,7 +25,6 @@ public class ParserLine {
 		//change with hashmap like hubclient
 		//System.out.println("line:["+ line + "]");
 		if (line.equals("/r")) {
-			System.out.println("request");
 			opcode = Opcode.REQUEST;
 			return new ParserLine(opcode, "userReq: " + trimline.substring(2).trim() +"\r\n");
 		}

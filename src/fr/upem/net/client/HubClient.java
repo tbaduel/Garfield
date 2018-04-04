@@ -23,7 +23,7 @@ public class HubClient {
 
 	public HubClient() {
 		clientMap.put(Opcode.MESSAGEBROADCAST, this::messageBroadcast);
-		clientMap.put(Opcode.WHISP_OK, this::authorizeIpAddress);
+		clientMap.put(Opcode.WHISP_REQUEST, this::authorizeIpAddress);
 		clientMap.put(Opcode.IPRESPONSE, this::receiveIpAddress);
 	}
 

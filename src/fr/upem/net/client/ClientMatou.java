@@ -43,6 +43,7 @@ public class ClientMatou {
 	private final int port;
 	private final String address;
 	private final int token;
+	private boolean closed = false;
 	
 	public ClientMatou(SocketChannel sc, Scanner scan, int port, String address) throws IOException {
 		Random rand = new Random();
@@ -137,12 +138,15 @@ public class ClientMatou {
 		try {
 			while (!Thread.interrupted()) {
 				String line = scan.nextLine();
+				if (closed) {
+					return ;
+				}
 				ParserLine parser = ParserLine.parse(line, this);
 				ByteBuffer req = HubClient.formatBuffer(sc, parser.line, parser.opcode.op);
 				queue.add(req);
 				processOut();
 				if (!updateInterestOps()) {
-					return ;
+					return;
 				}
 				selector.wakeup();
 				/*
@@ -272,6 +276,11 @@ public class ClientMatou {
 		reader.start();
 		doConnect();
 		while (!Thread.interrupted()) {
+			if (closed == true) {
+				reader.join();
+				return ;
+			}
+			System.out.println("Selecting keys");
 			selector.select();
 			processSelectedKeys();
 			selectedKeys.clear();
@@ -283,6 +292,7 @@ public class ClientMatou {
 		try {
 			System.out.println("Closing...");
 			sc.close();
+			closed = true;
 		} catch (IOException e) {
 			// ignore exception
 		}
