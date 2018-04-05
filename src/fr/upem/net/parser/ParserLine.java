@@ -39,8 +39,8 @@ public class ParserLine {
 			words = rawline.split("\\s+");
 			if (words.length < 3) {
 				return new ParserLine(Opcode.ERROR, "");
-			}
-			return new ParserLine(opcode, "data: " + words[2] + "\r\n", words[1]);
+			}			
+			return new ParserLine(opcode, "data: " + trimline.substring(words[1].length() + 3).trim() + "\r\n" + "username: " + words[1], words[1]);
 		}
 		else if (line.equals("/f")) {
 			opcode = Opcode.FILE;
