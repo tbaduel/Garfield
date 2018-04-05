@@ -14,7 +14,6 @@ import java.util.HashMap;
 import fr.upem.net.other.ColorText;
 import fr.upem.net.other.Opcode;
 import fr.upem.net.parser.BodyParser;
-import fr.upem.net.server.ServerMatou.Context;
 
 public class HubClient {
 
