@@ -11,7 +11,6 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
@@ -33,7 +32,7 @@ import fr.upem.net.server.Message;
 
 public class ClientMatou {
 
-	public static class Context {
+	public static class ContextClient {
 
 		final private SelectionKey key;
 		final private SocketChannel sc;
@@ -59,7 +58,7 @@ public class ClientMatou {
 
 		final private MessageReader messageReader = new MessageReader(bbin);
 
-		public Context(ClientMatou client, SelectionKey key) {
+		public ContextClient(ClientMatou client, SelectionKey key) {
 			// added for whisper
 			this.key = key;
 			this.sc = (SocketChannel) key.channel();
@@ -221,14 +220,14 @@ public class ClientMatou {
 	 * @param ip
 	 * @return The context
 	 */
-	public Context getContextFromIP(SocketAddress ip) {
+	public ContextClient getContextFromIP(SocketAddress ip) {
 		for (SelectionKey key : selector.keys()) {
 			SelectableChannel channel = key.channel();
 			if (!(channel instanceof ServerSocketChannel)) {
 				SocketChannel sc = (SocketChannel) channel;
 				try {
 					if (sc.getRemoteAddress().equals(ip)) {
-						return ((Context) key.attachment());
+						return ((ContextClient) key.attachment());
 					}
 				} catch (IOException e) {
 					return null;
@@ -239,11 +238,11 @@ public class ClientMatou {
 		return null;
 	}
 
-	private Context getContextFromUsername(String username) {
+	private ContextClient getContextFromUsername(String username) {
 		for (SelectionKey key : selector.keys()) {
 			SelectableChannel channel = key.channel();
 			if (!(channel instanceof ServerSocketChannel)) {
-				Context ct = ((Context) key.attachment());
+				ContextClient ct = ((ContextClient) key.attachment());
 				if (ct.username.equals(username)) {
 					return ct;
 				}
@@ -266,7 +265,7 @@ public class ClientMatou {
 			System.out.println("une key");
 			if (key.isValid() && !key.isAcceptable()) {
 				System.out.println("Ajout");
-				((Context) key.attachment()).queueMessage(msg.duplicate());
+				((ContextClient) key.attachment()).queueMessage(msg.duplicate());
 			}
 		}
 
@@ -295,7 +294,7 @@ public class ClientMatou {
 	private final int token;
 	private String userWhispered = null; // for whispers
 	private boolean closed = false;
-	private Context serverContext;
+	private ContextClient serverContext;
 	private final ConcurrentHashMap<String, ByteBuffer> mapWhisperMessage = new ConcurrentHashMap<>();
 	public  String username;
 
@@ -389,7 +388,11 @@ public class ClientMatou {
 
 	public Optional<SelectionKey> getNameInKeys(String user) {
 		// for whispers
-		return connectedClients.stream().filter(x -> ((Context) x.attachment()).username.equals(user)).findFirst();
+		for (SelectionKey key : connectedClients) {
+			System.out.println("context: " + key.attachment());
+			System.out.println("name: " + ((ContextClient)key.attachment()).username);
+		}
+		return connectedClients.stream().filter(x -> ((ContextClient) x.attachment()).username.equals(user)).findFirst();
 	}
 	/*
 	 * [18:27] tikko to localhost: salut les amis [18:27] tikko to localhost: /r
@@ -455,7 +458,7 @@ public class ClientMatou {
 		else {
 			if (!mapWhisperMessage.isEmpty()) {
 				for (String name : mapWhisperMessage.keySet()) {
-					Context ct = getContextFromUsername(name);
+					ContextClient ct = getContextFromUsername(name);
 					System.out.println(ct.username);
 					System.out.println("Somehting to send to a Client !");
 					ct.queueMessage(mapWhisperMessage.remove(name));
@@ -524,8 +527,11 @@ public class ClientMatou {
 		System.out.println("qq se connecte chez toi !");
 		sc.configureBlocking(false);
 		SelectionKey ClientKey = sc.register(selector, SelectionKey.OP_READ);
-		Context ct = new Context(this, ClientKey);
+		ContextClient ct = new ContextClient(this, ClientKey);
 		ClientKey.attach(ct);
+		System.out.println("===============+++>ADDING:");
+		System.out.println(ct);
+		addConnectedUsers(ClientKey);
 
 	}
 
@@ -540,11 +546,11 @@ public class ClientMatou {
 			}
 			if (key.isValid() && key.isWritable()) {
 				System.out.println("Do Write");
-				((Context) key.attachment()).doWrite();
+				((ContextClient) key.attachment()).doWrite();
 				System.out.println("Do Write DONE");
 			}
 			if (key.isValid() && key.isReadable()) {
-				((Context) key.attachment()).doRead();
+				((ContextClient) key.attachment()).doRead();
 			}
 
 		}
@@ -553,7 +559,7 @@ public class ClientMatou {
 	public void launch() throws IOException, InterruptedException {
 		sc.configureBlocking(false);
 		uniqueKey = sc.register(selector, SelectionKey.OP_CONNECT);
-		serverContext = new Context(this, uniqueKey);
+		serverContext = new ContextClient(this, uniqueKey);
 		uniqueKey.attach(serverContext);
 		Set<SelectionKey> selectedKeys = selector.selectedKeys();
 		Thread reader = new Thread(this::beginChat);

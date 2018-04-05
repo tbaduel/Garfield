@@ -14,7 +14,7 @@ import java.util.HashMap;
 import fr.upem.net.other.ColorText;
 import fr.upem.net.other.Opcode;
 import fr.upem.net.parser.BodyParser;
-import fr.upem.net.server.ServerMatou.Context;
+import fr.upem.net.client.ClientMatou.ContextClient;
 
 public class HubClient {
 
@@ -75,10 +75,10 @@ public class HubClient {
 			sc.connect(new InetSocketAddress(bp.getField("ip"), Integer.parseInt(bp.getField("port"))));
 			sc.configureBlocking(false);
 			SelectionKey ClientKey = sc.register(client.selector, SelectionKey.OP_READ);
-			Context ct = new Context(client, ClientKey);
+			ContextClient ct = new ContextClient(client, ClientKey);
 			ct.setUserName(bp.getField("userReq"));
 			ClientKey.attach(ct);
-			
+			client.addConnectedUsers(ClientKey);
 			/*client.ssc.register(client.selector, SelectionKey.OP_ACCEPT);
 			SocketChannel sc = client.ssc.accept();
 			if (sc == null)
@@ -88,7 +88,6 @@ public class HubClient {
 			Context ct = new Context(client, ClientKey);
 			ct.setUserName(bp.getField("username"));
 			ClientKey.attach(ct);*/
-			client.addConnectedUsers(ClientKey);
 		} catch (IOException e) {
 			client.log.severe("IOException!!");
 		}
