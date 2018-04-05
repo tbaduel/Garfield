@@ -26,6 +26,7 @@ public class HubClient {
 
 	public HubClient() {
 		clientMap.put(Opcode.MESSAGEBROADCAST, this::messageBroadcast);
+		clientMap.put(Opcode.WHISP, this::messageBroadcast);
 		clientMap.put(Opcode.WHISP_REQUEST, this::authorizeIpAddress);
 		clientMap.put(Opcode.IPRESPONSE, this::receiveIpAddress);
 	}
@@ -75,8 +76,7 @@ public class HubClient {
 			sc.connect(new InetSocketAddress(bp.getField("ip"), Integer.parseInt(bp.getField("port"))));
 			sc.configureBlocking(false);
 			SelectionKey ClientKey = sc.register(client.selector, SelectionKey.OP_READ);
-			ContextClient ct = new ContextClient(client, ClientKey);
-			ct.setUserName(bp.getField("userReq"));
+			ContextClient ct = new ContextClient(client, ClientKey, bp.getField("userReq"));
 			ClientKey.attach(ct);
 			client.addConnectedUsers(ClientKey);
 			/*client.ssc.register(client.selector, SelectionKey.OP_ACCEPT);

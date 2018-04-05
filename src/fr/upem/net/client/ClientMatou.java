@@ -58,11 +58,12 @@ public class ClientMatou {
 
 		final private MessageReader messageReader = new MessageReader(bbin);
 
-		public ContextClient(ClientMatou client, SelectionKey key) {
+		public ContextClient(ClientMatou client, SelectionKey key, String username) {
 			// added for whisper
 			this.key = key;
 			this.sc = (SocketChannel) key.channel();
 			this.client = client;
+			this.username = username;
 		}
 
 		public void setUserName(String username) {
@@ -288,7 +289,7 @@ public class ClientMatou {
 	// final private Queue<ByteBuffer> serverQueue = new LinkedList<>();
 	final private List<SelectionKey> connectedClients = new ArrayList<>();
 	private Scanner scan;
-	private List<String> awaitingUsers = new ArrayList<>();
+	private Queue<String> awaitingUsers = new LinkedList<>();
 	private final int port;
 	private final String address;
 	private final int token;
@@ -297,6 +298,7 @@ public class ClientMatou {
 	private ContextClient serverContext;
 	private final ConcurrentHashMap<String, ByteBuffer> mapWhisperMessage = new ConcurrentHashMap<>();
 	public  String username;
+	public String usernameWhisper;
 
 	public ClientMatou(SocketChannel sc, Scanner scan, int port, String address) throws IOException {
 		Random rand = new Random();
@@ -484,13 +486,8 @@ public class ClientMatou {
 		awaitingUsers.add(user);
 	}
 
-	public boolean removeAwaitingUsers(String user) {
-		int i = awaitingUsers.indexOf(user);
-		if (i == -1) {
-			return false;
-		}
-		awaitingUsers.remove(i);
-		return true;
+	public String removeAwaitingUsers(String user) {
+		return awaitingUsers.poll();
 	}
 
 	public void addConnectedUsers(SelectionKey client) {
@@ -527,10 +524,15 @@ public class ClientMatou {
 		System.out.println("qq se connecte chez toi !");
 		sc.configureBlocking(false);
 		SelectionKey ClientKey = sc.register(selector, SelectionKey.OP_READ);
-		ContextClient ct = new ContextClient(this, ClientKey);
+		String usernameWhisper = awaitingUsers.poll();
+		if (usernameWhisper == null) {
+			System.out.println("shouldnt be null");
+		}
+		ContextClient ct = new ContextClient(this, ClientKey, usernameWhisper);
 		ClientKey.attach(ct);
 		System.out.println("===============+++>ADDING:");
 		System.out.println(ct);
+		//TODO
 		addConnectedUsers(ClientKey);
 
 	}
@@ -559,7 +561,7 @@ public class ClientMatou {
 	public void launch() throws IOException, InterruptedException {
 		sc.configureBlocking(false);
 		uniqueKey = sc.register(selector, SelectionKey.OP_CONNECT);
-		serverContext = new ContextClient(this, uniqueKey);
+		serverContext = new ContextClient(this, uniqueKey, username);
 		uniqueKey.attach(serverContext);
 		Set<SelectionKey> selectedKeys = selector.selectedKeys();
 		Thread reader = new Thread(this::beginChat);
