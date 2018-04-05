@@ -85,7 +85,7 @@ public class ClientMatou {
 			ProcessStatus ps = messageReader.process();
 			if (ps == ProcessStatus.DONE) {
 				Message msg = messageReader.get();
-				client.hubClient.executeClient(Opcode.valueOfId(msg.getOp()), msg.getBp(), client);
+				client.hubClient.executeClient(Opcode.valueOfId(msg.getOp()), msg.getBp(), client, this);
 				messageReader.reset();
 				bbin.compact();
 			} else {
@@ -164,7 +164,7 @@ public class ClientMatou {
 		 * Close the socketChannel to the current Context. Note that it remove the
 		 * connection from the server map connection
 		 */
-		private void silentlyClose() {
+		public void silentlyClose() {
 			try {
 				sc.close();
 			} catch (IOException e) {
@@ -238,7 +238,7 @@ public class ClientMatou {
 		return null;
 	}
 
-	private ContextClient getContextFromUsername(String username) {
+	public ContextClient getContextFromUsername(String username) {
 		for (SelectionKey key : selector.keys()) {
 			SelectableChannel channel = key.channel();
 			if (!(channel instanceof ServerSocketChannel)) {
@@ -467,19 +467,20 @@ public class ClientMatou {
 			}
 		}
 	}
-
+	/*
 	private void processIn() throws IOException {
 		bbin.flip();
 		ProcessStatus ps = messageReader.process();
 		if (ps == ProcessStatus.DONE) {
 			Message msg = messageReader.get();
-			hubClient.executeClient(Opcode.valueOfId(msg.getOp()), msg.getBp(), this);
+			hubClient.executeClient(Opcode.valueOfId(msg.getOp()), msg.getBp(), this,);
 			messageReader.reset();
 			bbin.compact();
 		} else {
 			System.out.println("not done");
 		}
 	}
+	*/
 
 	public void addAwaitingUsers(String user) {
 		awaitingUsers.add(user);
