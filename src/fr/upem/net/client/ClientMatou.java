@@ -58,12 +58,11 @@ public class ClientMatou {
 
 		final private MessageReader messageReader = new MessageReader(bbin);
 
-		public ContextClient(ClientMatou client, SelectionKey key, String username) {
+		public ContextClient(ClientMatou client, SelectionKey key) {
 			// added for whisper
 			this.key = key;
 			this.sc = (SocketChannel) key.channel();
 			this.client = client;
-			this.username = username;
 		}
 
 		public void setUserName(String username) {
@@ -503,11 +502,11 @@ public class ClientMatou {
 	 * }
 	 */
 
-	private void doConnect() throws IOException {
+	public void doConnect(SelectionKey key) throws IOException {
 		if (!sc.finishConnect()) {
 			return;
 		}
-		serverContext.updateInterestOps();
+		((ContextClient) key.attachment()).updateInterestOps();
 	}
 
 	/*
@@ -528,13 +527,13 @@ public class ClientMatou {
 		if (usernameWhisper == null) {
 			System.out.println("shouldnt be null");
 		}
-		ContextClient ct = new ContextClient(this, ClientKey, usernameWhisper);
+		ContextClient ct = new ContextClient(this, ClientKey);
 		ClientKey.attach(ct);
 		System.out.println("===============+++>ADDING:");
 		System.out.println(ct);
 		//TODO
 		addConnectedUsers(ClientKey);
-
+		
 	}
 
 	private void processSelectedKeys() throws IOException {
@@ -544,7 +543,7 @@ public class ClientMatou {
 				doAccept(key);
 			}
 			if (key.isValid() && key.isConnectable()) {
-				doConnect();
+				doConnect(key);
 			}
 			if (key.isValid() && key.isWritable()) {
 				System.out.println("Do Write");
@@ -561,12 +560,12 @@ public class ClientMatou {
 	public void launch() throws IOException, InterruptedException {
 		sc.configureBlocking(false);
 		uniqueKey = sc.register(selector, SelectionKey.OP_CONNECT);
-		serverContext = new ContextClient(this, uniqueKey, username);
+		serverContext = new ContextClient(this, uniqueKey);
 		uniqueKey.attach(serverContext);
 		Set<SelectionKey> selectedKeys = selector.selectedKeys();
 		Thread reader = new Thread(this::beginChat);
 		reader.start();
-		doConnect();
+		doConnect(uniqueKey);
 		while (!Thread.interrupted()) {
 			if (closed == true) {
 				reader.join();
