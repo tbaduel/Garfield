@@ -89,7 +89,7 @@ public class ClientMatou {
 				messageReader.reset();
 				bbin.compact();
 			} else {
-				System.out.println("not done");
+				//System.out.println("not done");
 			}
 		}
 
@@ -128,9 +128,9 @@ public class ClientMatou {
 		 */
 		private void processOut() {
 			while (bbout.remaining() >= Integer.BYTES && queue.size() > 0) {
-				System.out.println("remaining bbout " + bbout.remaining());
+				//System.out.println("remaining bbout " + bbout.remaining());
 				ByteBuffer a = queue.poll();
-				System.out.println("add : " + a);
+				//System.out.println("add : " + a);
 				a.flip();
 				bbout.put(a);
 			}
@@ -187,7 +187,7 @@ public class ClientMatou {
 				client.log.info("closing");
 				closed = true;
 			}
-			System.out.println("--------------\n jai lu " + read + "bytes");
+			//System.out.println("--------------\n jai lu " + read + "bytes");
 			processIn();
 			updateInterestOps();
 		}
@@ -203,12 +203,16 @@ public class ClientMatou {
 
 		private void doWrite() throws IOException {
 			bbout.flip();
-			System.out.println("ID to send = " + bbout.getInt());
-			bbout.position(0);
-			System.out.println("Avant envoie : " + bbout);
-			System.out.println("WRITING " + sc.write(bbout));
+			//System.out.println("ID to send = " + bbout.getInt());
+			//bbout.position(0);
+			//System.out.println("Avant envoie : " + bbout);
+			
+			/* Two option */
+			//System.out.println("WRITING " + sc.write(bbout));
+			sc.write(bbout);
+			
 			bbout.compact();
-			System.out.println("Il reste a envoyer " + bbout);
+			//System.out.println("Il reste a envoyer " + bbout);
 			updateInterestOps();
 		}
 
@@ -251,25 +255,6 @@ public class ClientMatou {
 		return null;
 	}
 
-	/**
-	 * Add a message to all connected clients queue
-	 *
-	 * @param msg
-	 */
-	private void broadcast(ByteBuffer msg) {
-		System.out.println("BROADCASTING ...");
-		if (msg == null)
-			return;
-		System.out.println("\n\t SIZE = " + selector.keys().size());
-		for (SelectionKey key : selector.keys()) {
-			System.out.println("une key");
-			if (key.isValid() && !key.isAcceptable()) {
-				System.out.println("Ajout");
-				((ContextClient) key.attachment()).queueMessage(msg.duplicate());
-			}
-		}
-
-	}
 
 	public static final Charset UTF8 = Charset.forName("UTF-8");
 	public static final int BUFFER_SIZE = 1024;
@@ -281,7 +266,6 @@ public class ClientMatou {
 	private final Set<SelectionKey> selectedKeys;
 	private SelectionKey uniqueKey;
 	final private ByteBuffer bbin = ByteBuffer.allocateDirect(BUFFER_SIZE);
-	final private ByteBuffer bbout = ByteBuffer.allocateDirect(BUFFER_SIZE);
 	final private MessageReader messageReader = new MessageReader(bbin);
 	private final HubClient hubClient = new HubClient();
 	final private Queue<ByteBuffer> queue = new LinkedBlockingQueue<>();
@@ -313,7 +297,7 @@ public class ClientMatou {
 		selectedKeys = selector.selectedKeys();
 		ssc.register(selector, SelectionKey.OP_ACCEPT);
 		token = rand.nextInt(10000000);
-		System.out.println("mon port est : " + this.port);
+		//System.out.println("mon port est : " + this.port);
 	}
 	public void setUsername(String username) {
 		this.username = username;
@@ -340,7 +324,7 @@ public class ClientMatou {
 	}
 
 	/**
-	 * 
+	 * 	First received from server
 	 * @return id (opcode)
 	 * @throws IOException
 	 */
@@ -356,7 +340,13 @@ public class ClientMatou {
 		}
 		return -1;
 	}
-
+	
+	/**
+	 * First sending to the server
+	 * @param id
+	 * @param dataBody
+	 * @throws IOException
+	 */
 	public void requestServer(int id, String dataBody) throws IOException {
 		ByteBuffer req = HubClient.formatBuffer(sc, dataBody, id);
 		sendServer(req);
@@ -389,10 +379,10 @@ public class ClientMatou {
 
 	public Optional<SelectionKey> getNameInKeys(String user) {
 		// for whispers
-		for (SelectionKey key : connectedClients) {
-			System.out.println("context: " + key.attachment());
-			System.out.println("name: " + ((ContextClient)key.attachment()).username);
-		}
+		//for (SelectionKey key : connectedClients) {
+			//System.out.println("context: " + key.attachment());
+			//System.out.println("name: " + ((ContextClient)key.attachment()).username);
+		//}
 		return connectedClients.stream().filter(x -> ((ContextClient) x.attachment()).username.equals(user)).findFirst();
 	}
 	/*
@@ -416,13 +406,13 @@ public class ClientMatou {
 				}
 				else if (parser.opcode == Opcode.WHISP) {
 					if (getNameInKeys(parser.userWhispered).isPresent()) {
-						System.out.println(parser.userWhispered + " is present !");
+						//System.out.println(parser.userWhispered + " is present !");
 						userWhispered = parser.userWhispered; // for whispers
 						mapWhisperMessage.put(userWhispered, req);
 					}
 				} else {
-					System.out.println(parser.opcode);
-					System.out.println("Request = " + req);
+					//System.out.println(parser.opcode);
+					//System.out.println("Request = " + req);
 					// serverContext.queueMessage(req);
 					queue.add(req);
 				}
@@ -430,9 +420,9 @@ public class ClientMatou {
 				// if (!updateInterestOps()) {
 				// return;
 				// }
-				System.out.println("WAKING UP");
+				//System.out.println("WAKING UP");
 				selector.wakeup();
-				System.out.println("WOKE UP");
+				//System.out.println("WOKE UP");
 				/*
 				 * if (line.equals("/exit")) { notEnded = false; } else { ParserLine parser =
 				 * ParserLine.parse(line); executeAction(parser.opcode, parser.line); }
@@ -445,57 +435,31 @@ public class ClientMatou {
 
 	}
 
-	/*
-	 * private boolean updateInterestOps() { int newInterestOps = 0; if
-	 * (bbin.hasRemaining()) { newInterestOps |= SelectionKey.OP_READ; } if
-	 * (bbout.position() != 0) { newInterestOps |= SelectionKey.OP_WRITE; } if
-	 * (newInterestOps == 0) { silentlyClose(); } else { if (uniqueKey.isValid()) {
-	 * uniqueKey.interestOps(newInterestOps); } else {
-	 * System.out.println("Closing..."); return false; } } return true; }
-	 */
 
 	/**
-	 * Try to fill bbout from the message queue
+	 * Try to fill bbout of the differents contexts
 	 *
 	 */
 	private void fillBuffers() {
 		if (!queue.isEmpty()) {
-			System.out.println("queue is empty");
-			System.out.println(queue);
 			while (queue.size() > 0) {
-				System.out.println("Somehting to send to the server");
+				//System.out.println("Somehting to send to the server");
 				serverContext.queueMessage(queue.poll());
 			}
 		}
 		else {
-			System.out.println("queue is not empty");
 			if (!mapWhisperMessage.isEmpty()) {
-				System.out.println(mapWhisperMessage);
 				for (String name : mapWhisperMessage.keySet()) {
-					System.out.println("Getting context from username for name : " + name);
 					ContextClient ct = (ContextClient)getNameInKeys(name).get().attachment();
-					System.out.println(ct.username);
-					System.out.println("Somehting to send to a Client !");
+					//System.out.println(ct.username);
+					//System.out.println("Somehting to send to a Client !");
 					ct.queueMessage(mapWhisperMessage.remove(name));
 				}
-				System.out.println("End fillbuffer");
+				
 			}
 		}
 	}
-	/*
-	private void processIn() throws IOException {
-		bbin.flip();
-		ProcessStatus ps = messageReader.process();
-		if (ps == ProcessStatus.DONE) {
-			Message msg = messageReader.get();
-			hubClient.executeClient(Opcode.valueOfId(msg.getOp()), msg.getBp(), this,);
-			messageReader.reset();
-			bbin.compact();
-		} else {
-			System.out.println("not done");
-		}
-	}
-	*/
+
 
 	public void addAwaitingUsers(String user) {
 		awaitingUsers.add(user);
@@ -520,7 +484,7 @@ public class ClientMatou {
 
 	public void doConnect(SelectionKey key) throws IOException {
 		if (!sc.finishConnect()) {
-			System.out.println("Not connected now !");
+			//System.out.println("Not connected now !");
 			return;
 		}
 		((ContextClient) key.attachment()).updateInterestOps();
@@ -537,17 +501,17 @@ public class ClientMatou {
 		SocketChannel sc = ssc.accept();
 		if (sc == null)
 			return; // the selector gave a bad hint
-		System.out.println("qq se connecte chez toi !");
+		System.out.println("Quelqu'un s'est connecté!");
 		sc.configureBlocking(false);
 		SelectionKey ClientKey = sc.register(selector, SelectionKey.OP_READ);
 		String usernameWhisper = awaitingUsers.poll();
 		if (usernameWhisper == null) {
-			System.out.println("shouldnt be null");
+			//System.out.println("shouldnt be null");
 		}
 		ContextClient ct = new ContextClient(this, ClientKey);
 		ClientKey.attach(ct);
-		System.out.println("===============+++>ADDING:");
-		System.out.println(ct);
+		//System.out.println("===============+++>ADDING:");
+		//System.out.println(ct);
 		//TODO
 		addConnectedUsers(ClientKey);
 		
@@ -563,9 +527,7 @@ public class ClientMatou {
 				doConnect(key);
 			}
 			if (key.isValid() && key.isWritable()) {
-				System.out.println("Do Write");
 				((ContextClient) key.attachment()).doWrite();
-				System.out.println("Do Write DONE");
 			}
 			if (key.isValid() && key.isReadable()) {
 				((ContextClient) key.attachment()).doRead();
@@ -584,33 +546,22 @@ public class ClientMatou {
 		reader.start();
 		doConnect(uniqueKey);
 		while (!Thread.interrupted()) {
-			System.out.println("Closed?: " + closed);
+			//System.out.println("Closed?: " + closed);
 			if (closed == true) {
 				reader.join();
 				return;
 			}
-			System.out.println("here");
 			fillBuffers();
-			System.out.println("there");
-			Debug.printKeys(selector);
-			System.out.println("Selecting keys");
+			//Debug.printKeys(selector);
+			//System.out.println("Selecting keys");
 			selector.select();
-			Debug.printSelectedKey(selectedKeys);
+			//Debug.printSelectedKey(selectedKeys);
 			processSelectedKeys();
 			selectedKeys.clear();
 		}
 		reader.join();
 	}
 
-	private void silentlyClose() {
-		try {
-			System.out.println("Closing...");
-			sc.close();
-			closed = true;
-		} catch (IOException e) {
-			// ignore exception
-		}
-	}
 
 	public static void usage() {
 		System.out.println("usage: java fr.upem.net.tcp.ClientMatou address port");

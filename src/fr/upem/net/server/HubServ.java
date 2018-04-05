@@ -58,7 +58,7 @@ public class HubServ {
 			bb.putInt(Opcode.SIGNUP_ERR.op);
 		} else { // Username not used
 			bb.putInt(Opcode.SIGNUP_OK.op);
-			System.out.println("ADDED: " + Opcode.SIGNUP_OK);
+			//System.out.println("ADDED: " + Opcode.SIGNUP_OK);
 			try {
 				server.map.put(sc.getRemoteAddress(), name);
 			} catch (IOException e) {
@@ -76,9 +76,9 @@ public class HubServ {
 		System.out.println("Login...");
 		String name = msg.getBp().getField("username");
 		String password = msg.getBp().getField("password");
-		System.out.println("name: " + name);
-		System.out.println("pwd: " + password);
-		System.out.println(server.userMap.get(name));
+		//System.out.println("name: " + name);
+		//System.out.println("pwd: " + password);
+		//System.out.println(server.userMap.get(name));
 		if (server.userMap.containsKey(name)) { // Username exists
 			if (server.userMap.get(name).equals(password)) {
 				try {
@@ -189,7 +189,7 @@ public class HubServ {
 		BodyParser bp = msg.getBp();
 		String ip = bp.getField("ip");
 		String address = bp.getField("");
-		System.out.println(msg.getBody());
+		//System.out.println(msg.getBody());
 		return createMessage(Opcode.IPRESPONSE,(byte)1 ,msg.getBodyBuffer());
 	}
 

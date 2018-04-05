@@ -51,7 +51,7 @@ public class HubClient {
 		req.put(header);
 		req.put(body);
 		//req.flip();
-		System.out.println(req);
+		//System.out.println(req);
 		return req;
 	}
 
@@ -114,7 +114,7 @@ public class HubClient {
 		System.out.println(ColorText.colorize(ColorText.GREEN, bp.getField("username"))
 				+ " wants to communicate with you, to authorize requests, type /y " + bp.getField("username"));
 		client.addAwaitingUsers(bp.getField("username"));
-		System.out.println("add username : " + bp.getField("username"));
+		//System.out.println("add username : " + bp.getField("username"));
 	}
 
 	public void executeClient(Opcode op, BodyParser bp, ClientMatou client, ContextClient ctc) {
