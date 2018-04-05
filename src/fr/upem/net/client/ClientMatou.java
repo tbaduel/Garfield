@@ -411,10 +411,17 @@ public class ClientMatou {
 				}
 				ParserLine parser = ParserLine.parse(line, this);
 				ByteBuffer req = HubClient.formatBuffer(sc, parser.line, parser.opcode.op);
-				if (parser.opcode == Opcode.WHISP && getNameInKeys(parser.userWhispered).isPresent()) {
-					userWhispered = parser.userWhispered; // for whispers
-					mapWhisperMessage.put(userWhispered, req);
+				if (parser.opcode == Opcode.ERROR) {
+					System.out.println("Erreur de saisie");
+				}
+				else if (parser.opcode == Opcode.WHISP) {
+					if (getNameInKeys(parser.userWhispered).isPresent()) {
+						System.out.println(parser.userWhispered + " is present !");
+						userWhispered = parser.userWhispered; // for whispers
+						mapWhisperMessage.put(userWhispered, req);
+					}
 				} else {
+					System.out.println(parser.opcode);
 					System.out.println("Request = " + req);
 					// serverContext.queueMessage(req);
 					queue.add(req);
@@ -505,6 +512,7 @@ public class ClientMatou {
 
 	public void doConnect(SelectionKey key) throws IOException {
 		if (!sc.finishConnect()) {
+			System.out.println("Not connected now !");
 			return;
 		}
 		((ContextClient) key.attachment()).updateInterestOps();
