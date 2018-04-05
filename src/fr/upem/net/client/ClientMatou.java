@@ -11,6 +11,7 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
@@ -18,6 +19,8 @@ import java.util.Queue;
 import java.util.Random;
 import java.util.Scanner;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Logger;
 
 import fr.upem.net.other.Debug;
@@ -41,7 +44,7 @@ public class ClientMatou {
 		private boolean closed = false;
 		private Opcode opcodeAction;
 		public String username; // added for whisper
-		
+
 		/* Try to read smthng */
 		/*
 		 * private boolean opCodeReaded = false; private boolean headerSizeReaded =
@@ -55,17 +58,16 @@ public class ClientMatou {
 		 */
 
 		final private MessageReader messageReader = new MessageReader(bbin);
-		
+
 		public Context(ClientMatou client, SelectionKey key) {
-			//added for whisper
+			// added for whisper
 			this.key = key;
 			this.sc = (SocketChannel) key.channel();
 			this.client = client;
 		}
-		
-		
+
 		public void setUserName(String username) {
-			//added for whisper
+			// added for whisper
 			this.username = username;
 		}
 
@@ -100,8 +102,8 @@ public class ClientMatou {
 		 * @throws IOException
 		 */
 		public ByteBuffer messageProcessing(Message msg) throws IOException {
-			//TODO
-			//add server here
+			// TODO
+			// add server here
 			HubServ hub = new HubServ();
 			ByteBuffer tmp = hub.ServerExecute(msg, null, sc);
 			opcodeAction = hub.getOpcodeAction();
@@ -111,7 +113,7 @@ public class ClientMatou {
 
 		/**
 		 * Add a message to the message queue, tries to fill bbOut and updateInterestOps
-		 *	The message is a ByteBuffer in write mode
+		 * The message is a ByteBuffer in write mode
 		 *
 		 * @param msg
 		 */
@@ -158,11 +160,10 @@ public class ClientMatou {
 				key.interestOps(newInterestOps);
 
 		}
-		
-		
+
 		/**
-		 * Close the socketChannel to the current Context.
-		 * Note that it remove the connection from the server map connection
+		 * Close the socketChannel to the current Context. Note that it remove the
+		 * connection from the server map connection
 		 */
 		private void silentlyClose() {
 			try {
@@ -213,16 +214,17 @@ public class ClientMatou {
 		}
 
 	}
-	
+
 	/**
 	 * Get the Context corresponding to the ip
+	 * 
 	 * @param ip
 	 * @return The context
 	 */
 	public Context getContextFromIP(SocketAddress ip) {
 		for (SelectionKey key : selector.keys()) {
 			SelectableChannel channel = key.channel();
-			if(!(channel instanceof ServerSocketChannel)) {
+			if (!(channel instanceof ServerSocketChannel)) {
 				SocketChannel sc = (SocketChannel) channel;
 				try {
 					if (sc.getRemoteAddress().equals(ip)) {
@@ -231,13 +233,24 @@ public class ClientMatou {
 				} catch (IOException e) {
 					return null;
 				}
-				
+
 			}
 		}
 		return null;
 	}
-	
-	
+
+	private Context getContextFromUsername(String username) {
+		for (SelectionKey key : selector.keys()) {
+			SelectableChannel channel = key.channel();
+			if (!(channel instanceof ServerSocketChannel)) {
+				Context ct = ((Context) key.attachment());
+				if (ct.username.equals(username)) {
+					return ct;
+				}
+			}
+		}
+		return null;
+	}
 
 	/**
 	 * Add a message to all connected clients queue
@@ -258,7 +271,7 @@ public class ClientMatou {
 		}
 
 	}
-	
+
 	public static final Charset UTF8 = Charset.forName("UTF-8");
 	public static final int BUFFER_SIZE = 1024;
 	public static final Logger log = Logger.getLogger(ClientMatou.class.getName());
@@ -272,8 +285,8 @@ public class ClientMatou {
 	final private ByteBuffer bbout = ByteBuffer.allocateDirect(BUFFER_SIZE);
 	final private MessageReader messageReader = new MessageReader(bbin);
 	private final HubClient hubClient = new HubClient();
-	final private Queue<ByteBuffer> queue = new LinkedList<>();
-	final private Queue<ByteBuffer> serverQueue = new LinkedList<>();
+	final private Queue<ByteBuffer> queue = new LinkedBlockingQueue<>();
+	// final private Queue<ByteBuffer> serverQueue = new LinkedList<>();
 	final private List<SelectionKey> connectedClients = new ArrayList<>();
 	private Scanner scan;
 	private List<String> awaitingUsers = new ArrayList<>();
@@ -283,22 +296,28 @@ public class ClientMatou {
 	private String userWhispered = null; // for whispers
 	private boolean closed = false;
 	private Context serverContext;
-	
-	
+	private final ConcurrentHashMap<String, ByteBuffer> mapWhisperMessage = new ConcurrentHashMap<>();
+	public  String username;
+
 	public ClientMatou(SocketChannel sc, Scanner scan, int port, String address) throws IOException {
 		Random rand = new Random();
 		ssc = ServerSocketChannel.open();
 		ssc.bind(null);
+		ssc.configureBlocking(false);
 		this.sc = sc;
 		this.scan = scan;
-		this.port = ((InetSocketAddress)ssc.getLocalAddress()).getPort();
+		this.port = ((InetSocketAddress) ssc.getLocalAddress()).getPort();
 		this.address = address;
 		sc.connect(new InetSocketAddress(address, port));
 		selector = Selector.open();
 		selectedKeys = selector.selectedKeys();
+		ssc.register(selector, SelectionKey.OP_ACCEPT);
 		token = rand.nextInt(10000000);
+		System.out.println("mon port est : " + this.port);
 	}
-	
+	public void setUsername(String username) {
+		this.username = username;
+	}
 	public int getToken() {
 		return token;
 	}
@@ -306,11 +325,11 @@ public class ClientMatou {
 	public String getAddress() {
 		return address;
 	}
-	
+
 	public int getPort() {
 		return port;
 	}
-	
+
 	static boolean readFully(SocketChannel sc, ByteBuffer bb) throws IOException {
 		while (sc.read(bb) != -1) {
 			if (!bb.hasRemaining()) {
@@ -370,14 +389,13 @@ public class ClientMatou {
 
 	public Optional<SelectionKey> getNameInKeys(String user) {
 		// for whispers
-		return connectedClients.stream().filter(x -> ((Context)x.attachment()).username.equals(user)).findFirst();
+		return connectedClients.stream().filter(x -> ((Context) x.attachment()).username.equals(user)).findFirst();
 	}
 	/*
-	 * [18:27] tikko to localhost: salut les amis
-	 * [18:27] tikko to localhost: /r thomas
-	 * [18:27] localhost to thomas: DEMANDE DE TIKKO DE MESSAGE PRIVE (O/N)
-	 * [18:27] thomas to localhost: O /w thomas salut mon frere
-	 * [18:27] tikko to thomas: salut mon frere /f [nom] file /r [nom] whisper
+	 * [18:27] tikko to localhost: salut les amis [18:27] tikko to localhost: /r
+	 * thomas [18:27] localhost to thomas: DEMANDE DE TIKKO DE MESSAGE PRIVE (O/N)
+	 * [18:27] thomas to localhost: O /w thomas salut mon frere [18:27] tikko to
+	 * thomas: salut mon frere /f [nom] file /r [nom] whisper
 	 */
 
 	public void beginChat() {
@@ -385,22 +403,22 @@ public class ClientMatou {
 			while (!Thread.interrupted()) {
 				String line = scan.nextLine();
 				if (closed) {
-					return ;
+					return;
 				}
 				ParserLine parser = ParserLine.parse(line, this);
 				ByteBuffer req = HubClient.formatBuffer(sc, parser.line, parser.opcode.op);
 				if (parser.opcode == Opcode.WHISP && getNameInKeys(parser.userWhispered).isPresent()) {
 					userWhispered = parser.userWhispered; // for whispers
-					serverQueue.add(req);
+					mapWhisperMessage.put(userWhispered, req);
 				} else {
 					System.out.println("Request = " + req);
-					//serverContext.queueMessage(req);
+					// serverContext.queueMessage(req);
 					queue.add(req);
 				}
-				//processOut();
-				//if (!updateInterestOps()) {
-				//	return;
-				//}
+				// processOut();
+				// if (!updateInterestOps()) {
+				// return;
+				// }
 				selector.wakeup();
 				/*
 				 * if (line.equals("/exit")) { notEnded = false; } else { ParserLine parser =
@@ -415,28 +433,13 @@ public class ClientMatou {
 	}
 
 	/*
-	private boolean updateInterestOps() {
-		int newInterestOps = 0;
-		if (bbin.hasRemaining()) {
-			newInterestOps |= SelectionKey.OP_READ;
-		}
-		if (bbout.position() != 0) {
-			newInterestOps |= SelectionKey.OP_WRITE;
-		}
-		if (newInterestOps == 0) {
-			silentlyClose();
-		} else {
-			if (uniqueKey.isValid()) {
-				uniqueKey.interestOps(newInterestOps);
-			}
-			else {
-				System.out.println("Closing...");
-				return false;
-			}
-		}
-		return true;
-	}
-	*/
+	 * private boolean updateInterestOps() { int newInterestOps = 0; if
+	 * (bbin.hasRemaining()) { newInterestOps |= SelectionKey.OP_READ; } if
+	 * (bbout.position() != 0) { newInterestOps |= SelectionKey.OP_WRITE; } if
+	 * (newInterestOps == 0) { silentlyClose(); } else { if (uniqueKey.isValid()) {
+	 * uniqueKey.interestOps(newInterestOps); } else {
+	 * System.out.println("Closing..."); return false; } } return true; }
+	 */
 
 	/**
 	 * Try to fill bbout from the message queue
@@ -445,13 +448,18 @@ public class ClientMatou {
 	private void fillBuffers() {
 		if (!queue.isEmpty()) {
 			while (queue.size() > 0) {
+				System.out.println("Somehting to send to the server");
 				serverContext.queueMessage(queue.poll());
 			}
 		}
 		else {
-			while (bbout.remaining() >= Integer.BYTES && serverQueue.size() > 0) {
-				ByteBuffer a = serverQueue.poll();
-				bbout.put(a);
+			if (!mapWhisperMessage.isEmpty()) {
+				for (String name : mapWhisperMessage.keySet()) {
+					Context ct = getContextFromUsername(name);
+					System.out.println(ct.username);
+					System.out.println("Somehting to send to a Client !");
+					ct.queueMessage(mapWhisperMessage.remove(name));
+				}
 			}
 		}
 	}
@@ -469,11 +477,10 @@ public class ClientMatou {
 		}
 	}
 
-
 	public void addAwaitingUsers(String user) {
 		awaitingUsers.add(user);
 	}
-	
+
 	public boolean removeAwaitingUsers(String user) {
 		int i = awaitingUsers.indexOf(user);
 		if (i == -1) {
@@ -482,24 +489,19 @@ public class ClientMatou {
 		awaitingUsers.remove(i);
 		return true;
 	}
-	
+
 	public void addConnectedUsers(SelectionKey client) {
 		connectedClients.add(client);
 	}
-	
-	/*
-	private void doWrite() throws IOException {
-		// dowrite ne s'executera pas tant que l'utilisateur n'aura pas ecrit sur
-		// l'entrée standard
-		// (en gros tant que bbout ne sera pas rempli par l'autre thread.)
-		bbout.flip();
-		bbout.position(0);
-		sc.write(bbout);
-		bbout.compact();
-		updateInterestOps();
 
-	}
-	*/
+	/*
+	 * private void doWrite() throws IOException { // dowrite ne s'executera pas
+	 * tant que l'utilisateur n'aura pas ecrit sur // l'entrée standard // (en gros
+	 * tant que bbout ne sera pas rempli par l'autre thread.) bbout.flip();
+	 * bbout.position(0); sc.write(bbout); bbout.compact(); updateInterestOps();
+	 * 
+	 * }
+	 */
 
 	private void doConnect() throws IOException {
 		if (!sc.finishConnect()) {
@@ -507,33 +509,28 @@ public class ClientMatou {
 		}
 		serverContext.updateInterestOps();
 	}
-	
+
 	/*
-	private void doRead() throws IOException {
-		System.out.println("this doread closes: " + closed);
-		if (sc.read(bbin) == -1) {
-			log.info("Closing connection.");
-			silentlyClose();
-			return ;
-		}
-		processIn();
-		updateInterestOps();
-	}
-	*/
-	
+	 * private void doRead() throws IOException {
+	 * System.out.println("this doread closes: " + closed); if (sc.read(bbin) == -1)
+	 * { log.info("Closing connection."); silentlyClose(); return ; } processIn();
+	 * updateInterestOps(); }
+	 */
+
 	private void doAccept(SelectionKey key) throws IOException {
-			SocketChannel sc = ssc.accept();
-			if (sc == null)
-				return; // the selector gave a bad hint
-			sc.configureBlocking(false);
-			SelectionKey ClientKey = sc.register(selector, SelectionKey.OP_READ);
-			Context ct = new Context(this, ClientKey);
-			ClientKey.attach(ct);
+		SocketChannel sc = ssc.accept();
+		if (sc == null)
+			return; // the selector gave a bad hint
+		System.out.println("qq se connecte chez toi !");
+		sc.configureBlocking(false);
+		SelectionKey ClientKey = sc.register(selector, SelectionKey.OP_READ);
+		Context ct = new Context(this, ClientKey);
+		ClientKey.attach(ct);
 
 	}
-	
+
 	private void processSelectedKeys() throws IOException {
-		
+
 		for (SelectionKey key : selectedKeys) {
 			if (key.isValid() && key.isAcceptable()) {
 				doAccept(key);
@@ -549,23 +546,23 @@ public class ClientMatou {
 			if (key.isValid() && key.isReadable()) {
 				((Context) key.attachment()).doRead();
 			}
-			
+
 		}
 	}
 
 	public void launch() throws IOException, InterruptedException {
 		sc.configureBlocking(false);
-	    uniqueKey=sc.register(selector, SelectionKey.OP_CONNECT);
-	    serverContext = new Context(this, uniqueKey);
-	    uniqueKey.attach(serverContext);
-	    Set<SelectionKey> selectedKeys = selector.selectedKeys();
+		uniqueKey = sc.register(selector, SelectionKey.OP_CONNECT);
+		serverContext = new Context(this, uniqueKey);
+		uniqueKey.attach(serverContext);
+		Set<SelectionKey> selectedKeys = selector.selectedKeys();
 		Thread reader = new Thread(this::beginChat);
 		reader.start();
 		doConnect();
 		while (!Thread.interrupted()) {
 			if (closed == true) {
 				reader.join();
-				return ;
+				return;
 			}
 			fillBuffers();
 			Debug.printKeys(selector);
@@ -591,13 +588,13 @@ public class ClientMatou {
 	public static void usage() {
 		System.out.println("usage: java fr.upem.net.tcp.ClientMatou address port");
 	}
-	
+
 	public static void main(String args[]) throws InterruptedException {
-		
+
 		try (Scanner sc = new Scanner(System.in); SocketChannel sock = SocketChannel.open();) {
 			if (args.length != 2) {
 				usage();
-				return ;
+				return;
 			}
 			int port = Integer.parseInt(args[1]);
 			ClientMatou cm = new ClientMatou(sock, sc, port, args[0]);
@@ -619,6 +616,7 @@ public class ClientMatou {
 				}
 			}
 			System.out.println("Welcome, " + login + " !");
+			cm.setUsername(login);
 			cm.launch();
 
 		} catch (IOException e) {

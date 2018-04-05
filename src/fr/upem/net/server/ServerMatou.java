@@ -102,22 +102,16 @@ public class ServerMatou {
 				if (toSend != null) {
 					// toSend.flip();
 					System.out.println(toSend);
-					if (msg.getOp() == Opcode.MESSAGE.op) { // Broadcast case
+					int msgOpcode = msg.getOp();
+					if (msgOpcode == Opcode.MESSAGE.op) { // Broadcast case
 						server.broadcast(toSend);
 						
-					}else if (msg.getOp() == Opcode.REQUEST.op) {
+					}else if (msgOpcode == Opcode.REQUEST.op) {
 						//TODO
 						System.out.println("Request : opcode = " + opcodeAction);
 						//toSend.position(0);
-						if (opcodeAction == Opcode.WHISP_OK){
-							/*
-							int port = Integer.parseInt(msg.getBp().getField("port"));
-							String ip = msg.getBp().getField("ip");
-							*/
-							Context contextDest = server.getContextFromIP(server.getKeyFromMap(msg.getBp().getField("username")));
-							contextDest.queueMessage(toSend);
-						}
-						else if (opcodeAction == Opcode.WHISP_REQUEST) {
+						
+						if (opcodeAction == Opcode.WHISP_REQUEST) {
 							Context contextDest = server.getContextFromIP(server.getKeyFromMap(msg.getBp().getField("userReq")));
 							System.out.println(contextDest.sc.getRemoteAddress().toString());
 							contextDest.queueMessage(toSend);
@@ -128,6 +122,15 @@ public class ServerMatou {
 						opcodeAction = null;
 						
 						
+					}
+					else if (msgOpcode == Opcode.WHISP_OK.op){
+						/*
+						int port = Integer.parseInt(msg.getBp().getField("port"));
+						String ip = msg.getBp().getField("ip");
+						*/
+						System.out.println("jenvoie la demande à :" + msg.getBp().getField("username"));
+						Context contextDest = server.getContextFromIP(server.getKeyFromMap(msg.getBp().getField("username")));
+						contextDest.queueMessage(toSend);
 					}
 					else {				
 						System.out.println("Sending to client ...");
