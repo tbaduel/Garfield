@@ -506,11 +506,11 @@ public class ClientMatou {
 	 * }
 	 */
 
-	private void doConnect() throws IOException {
+	public void doConnect(SelectionKey key) throws IOException {
 		if (!sc.finishConnect()) {
 			return;
 		}
-		serverContext.updateInterestOps();
+		((ContextClient) key.attachment()).updateInterestOps();
 	}
 
 	/*
@@ -532,7 +532,7 @@ public class ClientMatou {
 		System.out.println("===============+++>ADDING:");
 		System.out.println(ct);
 		addConnectedUsers(ClientKey);
-
+		
 	}
 
 	private void processSelectedKeys() throws IOException {
@@ -542,7 +542,7 @@ public class ClientMatou {
 				doAccept(key);
 			}
 			if (key.isValid() && key.isConnectable()) {
-				doConnect();
+				doConnect(key);
 			}
 			if (key.isValid() && key.isWritable()) {
 				System.out.println("Do Write");
@@ -564,7 +564,7 @@ public class ClientMatou {
 		Set<SelectionKey> selectedKeys = selector.selectedKeys();
 		Thread reader = new Thread(this::beginChat);
 		reader.start();
-		doConnect();
+		doConnect(uniqueKey);
 		while (!Thread.interrupted()) {
 			if (closed == true) {
 				reader.join();

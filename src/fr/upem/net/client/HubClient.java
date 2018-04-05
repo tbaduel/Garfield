@@ -28,6 +28,7 @@ public class HubClient {
 		clientMap.put(Opcode.MESSAGEBROADCAST, this::messageBroadcast);
 		clientMap.put(Opcode.WHISP_REQUEST, this::authorizeIpAddress);
 		clientMap.put(Opcode.IPRESPONSE, this::receiveIpAddress);
+		clientMap.put(Opcode.CHECK_PRIVATE, this::checkPrivate);
 	}
 
 	/**
@@ -74,11 +75,13 @@ public class HubClient {
 			SocketChannel sc = SocketChannel.open();
 			sc.connect(new InetSocketAddress(bp.getField("ip"), Integer.parseInt(bp.getField("port"))));
 			sc.configureBlocking(false);
-			SelectionKey ClientKey = sc.register(client.selector, SelectionKey.OP_READ);
+			SelectionKey ClientKey = sc.register(client.selector, SelectionKey.OP_CONNECT);
 			ContextClient ct = new ContextClient(client, ClientKey);
 			ct.setUserName(bp.getField("userReq"));
 			ClientKey.attach(ct);
 			client.addConnectedUsers(ClientKey);
+			client.doConnect(ClientKey);
+			ct.queueMessage(formatBuffer(sc,"username: "+ client.username + "\r\ntoken: " + bp.getField("token") ,Opcode.CHECK_PRIVATE.op));
 			/*client.ssc.register(client.selector, SelectionKey.OP_ACCEPT);
 			SocketChannel sc = client.ssc.accept();
 			if (sc == null)
@@ -92,6 +95,10 @@ public class HubClient {
 			client.log.severe("IOException!!");
 		}
 		// and connect here.
+	}
+	
+	public void checkPrivate(BodyParser bp, ClientMatou client) {
+		
 	}
 
 	public void authorizeIpAddress(BodyParser bp, ClientMatou client) {
