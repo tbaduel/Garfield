@@ -288,10 +288,10 @@ public class ClientMatou {
 	public ClientMatou(SocketChannel sc, Scanner scan, int port, String address) throws IOException {
 		Random rand = new Random();
 		ssc = ServerSocketChannel.open();
-		ssc.bind(new InetSocketAddress(7777));
+		ssc.bind(null);
 		this.sc = sc;
 		this.scan = scan;
-		this.port = port;
+		this.port = ((InetSocketAddress)ssc.getLocalAddress()).getPort();
 		this.address = address;
 		sc.connect(new InetSocketAddress(address, port));
 		selector = Selector.open();
