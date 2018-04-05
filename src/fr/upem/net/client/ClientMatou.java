@@ -430,7 +430,9 @@ public class ClientMatou {
 				// if (!updateInterestOps()) {
 				// return;
 				// }
+				System.out.println("WAKING UP");
 				selector.wakeup();
+				System.out.println("WOKE UP");
 				/*
 				 * if (line.equals("/exit")) { notEnded = false; } else { ParserLine parser =
 				 * ParserLine.parse(line); executeAction(parser.opcode, parser.line); }
@@ -458,19 +460,25 @@ public class ClientMatou {
 	 */
 	private void fillBuffers() {
 		if (!queue.isEmpty()) {
+			System.out.println("queue is empty");
+			System.out.println(queue);
 			while (queue.size() > 0) {
 				System.out.println("Somehting to send to the server");
 				serverContext.queueMessage(queue.poll());
 			}
 		}
 		else {
+			System.out.println("queue is not empty");
 			if (!mapWhisperMessage.isEmpty()) {
+				System.out.println(mapWhisperMessage);
 				for (String name : mapWhisperMessage.keySet()) {
-					ContextClient ct = getContextFromUsername(name);
+					System.out.println("Getting context from username for name : " + name);
+					ContextClient ct = (ContextClient)getNameInKeys(name).get().attachment();
 					System.out.println(ct.username);
 					System.out.println("Somehting to send to a Client !");
 					ct.queueMessage(mapWhisperMessage.remove(name));
 				}
+				System.out.println("End fillbuffer");
 			}
 		}
 	}
@@ -576,11 +584,14 @@ public class ClientMatou {
 		reader.start();
 		doConnect(uniqueKey);
 		while (!Thread.interrupted()) {
+			System.out.println("Closed?: " + closed);
 			if (closed == true) {
 				reader.join();
 				return;
 			}
+			System.out.println("here");
 			fillBuffers();
+			System.out.println("there");
 			Debug.printKeys(selector);
 			System.out.println("Selecting keys");
 			selector.select();
