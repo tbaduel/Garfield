@@ -56,7 +56,11 @@ public class ParserLine {
 			if (words.length < 2) {
 				return new ParserLine(Opcode.ERROR, "");
 			}
-			return new ParserLine(opcode, "username: " + words[1] + "\r\n" + "ip: " + client.getAddress() + "\r\n" + "port: " + client.getPort() + "\r\ntoken: " + client.getToken() + "\r\n");
+			return new ParserLine(opcode, "username: " + words[1] + "\r\n" 
+					+ "userReq: " + client.username + "\r\n"
+					+ "ip: " + client.getAddress() + "\r\n" 
+					+ "port: " + client.getPort() + "\r\n" 
+					+ "token: " + client.getToken() + "\r\n");
 		}
 		else
  			return new ParserLine(opcode, "data: " + rawline + "\r\n");

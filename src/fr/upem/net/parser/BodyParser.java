@@ -20,7 +20,7 @@ public class BodyParser {
     public static BodyParser create(int size, Map<String,String> fields) {
         Map<String,String> fieldsCopied = new HashMap<>();
         for (String s : fields.keySet())
-            fieldsCopied.put(s,fields.get(s).trim());
+            fieldsCopied.put(s,fields.get(s).trim().toLowerCase());
         return new BodyParser(size, fieldsCopied);
     }
     

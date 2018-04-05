@@ -14,6 +14,7 @@ import java.util.HashMap;
 import fr.upem.net.other.ColorText;
 import fr.upem.net.other.Opcode;
 import fr.upem.net.parser.BodyParser;
+import fr.upem.net.client.ClientMatou.ContextClient;
 
 public class HubClient {
 
@@ -47,7 +48,7 @@ public class HubClient {
 		req.putInt(header.remaining());
 		req.put(header);
 		req.put(body);
-		req.flip();
+		//req.flip();
 		System.out.println(req);
 		return req;
 	}
@@ -65,15 +66,19 @@ public class HubClient {
 
 	public void receiveIpAddress(BodyParser bp, ClientMatou client) {
 		System.out.println("Received IP to connect to: " + bp.getField("ip") + ":" + bp.getField("port"));
-		if (!client.removeAwaitingUsers(bp.getField("username"))) {
-			System.out.println("No user found to connect to.");
-			return;
-		}
+		//if (!client.removeAwaitingUsers(bp.getField("userReq"))) {
+			//System.out.println("No user found to connect to. User : " + bp.getField("userReq"));
+			//return;
+		//}
 		try {
 			SocketChannel sc = SocketChannel.open();
 			sc.connect(new InetSocketAddress(bp.getField("ip"), Integer.parseInt(bp.getField("port"))));
 			sc.configureBlocking(false);
-			sc.register(client.selector, SelectionKey.OP_READ);
+			SelectionKey ClientKey = sc.register(client.selector, SelectionKey.OP_READ);
+			ContextClient ct = new ContextClient(client, ClientKey);
+			ct.setUserName(bp.getField("userReq"));
+			ClientKey.attach(ct);
+			client.addConnectedUsers(ClientKey);
 			/*client.ssc.register(client.selector, SelectionKey.OP_ACCEPT);
 			SocketChannel sc = client.ssc.accept();
 			if (sc == null)
@@ -82,8 +87,7 @@ public class HubClient {
 			SelectionKey ClientKey = sc.register(client.selector, SelectionKey.OP_READ);
 			Context ct = new Context(client, ClientKey);
 			ct.setUserName(bp.getField("username"));
-			ClientKey.attach(ct);
-			client.addConnectedUsers(ClientKey);*/
+			ClientKey.attach(ct);*/
 		} catch (IOException e) {
 			client.log.severe("IOException!!");
 		}
@@ -94,6 +98,7 @@ public class HubClient {
 		System.out.println(ColorText.colorize(ColorText.GREEN, bp.getField("username"))
 				+ " wants to communicate with you, to authorize requests, type /y " + bp.getField("username"));
 		client.addAwaitingUsers(bp.getField("username"));
+		System.out.println("add username : " + bp.getField("username"));
 	}
 
 	public void executeClient(Opcode op, BodyParser bp, ClientMatou client) {
