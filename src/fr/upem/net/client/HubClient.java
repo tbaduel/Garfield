@@ -67,7 +67,7 @@ public class HubClient {
 	}
 
 	public void receiveIpAddress(BodyParser bp, ClientMatou client , ContextClient ctc) {
-		System.out.println("Received IP to connect to: " + bp.getField("ip") + ":" + bp.getField("port"));
+		//System.out.println("Received IP to connect to: " + bp.getField("ip") + ":" + bp.getField("port"));
 		//if (!client.removeAwaitingUsers(bp.getField("userReq"))) {
 			//System.out.println("No user found to connect to. User : " + bp.getField("userReq"));
 			//return;
