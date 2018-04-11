@@ -23,6 +23,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import fr.upem.net.client.ClientMatou;
+import fr.upem.net.message.Message;
+import fr.upem.net.message.MessageIp;
+import fr.upem.net.message.MessageOneString;
 import fr.upem.net.other.Opcode;
 import fr.upem.net.reader.MessageReader;
 import fr.upem.net.reader.Reader.ProcessStatus;
@@ -112,7 +115,8 @@ public class ServerMatou {
 						//toSend.position(0);
 						
 						if (opcodeAction == Opcode.WHISP_REQUEST) {
-							Context contextDest = server.getContextFromIP(server.getKeyFromMap(msg.getBp().getField("userReq")));
+							MessageOneString message = (MessageOneString) msg;
+							Context contextDest = server.getContextFromIP(server.getKeyFromMap(message.str));
 							System.out.println(contextDest.sc.getRemoteAddress().toString());
 							contextDest.queueMessage(toSend);
 						}
@@ -128,8 +132,9 @@ public class ServerMatou {
 						int port = Integer.parseInt(msg.getBp().getField("port"));
 						String ip = msg.getBp().getField("ip");
 						*/
-						System.out.println("jenvoie la demande à :" + msg.getBp().getField("username"));
-						Context contextDest = server.getContextFromIP(server.getKeyFromMap(msg.getBp().getField("username")));
+						MessageIp message = (MessageIp) msg;
+						//System.out.println("jenvoie la demande à :" + msg.getBp().getField("username"));
+						Context contextDest = server.getContextFromIP(server.getKeyFromMap(message.username));
 						contextDest.queueMessage(toSend);
 					}
 					else {				

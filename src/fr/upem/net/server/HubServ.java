@@ -8,8 +8,12 @@ import java.nio.charset.Charset;
 import java.util.Collection;
 import java.util.HashMap;
 
+import fr.upem.net.message.Message;
+import fr.upem.net.message.MessageIp;
+import fr.upem.net.message.MessageOneString;
+import fr.upem.net.message.MessageTwoString;
 import fr.upem.net.other.Opcode;
-import fr.upem.net.parser.BodyParser;
+
 
 public class HubServ {
 	private static final Charset UTF8 = Charset.forName("utf-8");
@@ -51,9 +55,10 @@ public class HubServ {
 	}
 
 	private ByteBuffer signup(Message msg, ServerMatou server, SocketChannel sc) {
+		MessageTwoString message = (MessageTwoString) msg;
 		ByteBuffer bb = ByteBuffer.allocate(BUFFER_SIZE);
 		System.out.println("Signin...");
-		String name = msg.getBp().getField("username");
+		String name = message.str1;
 		if (server.map.containsValue(name)) { // Username already used
 			bb.putInt(Opcode.SIGNUP_ERR.op);
 		} else { // Username not used
@@ -64,7 +69,7 @@ public class HubServ {
 			} catch (IOException e) {
 				return null;
 			}
-			server.userMap.put(name, msg.getBp().getField("password"));
+			server.userMap.put(name, message.str2);
 
 		}
 		return bb;
@@ -72,10 +77,11 @@ public class HubServ {
 	}
 
 	private ByteBuffer login(Message msg, ServerMatou server, SocketChannel sc) {
+		MessageTwoString message = (MessageTwoString) msg;
 		ByteBuffer bb = ByteBuffer.allocate(BUFFER_SIZE);
 		System.out.println("Login...");
-		String name = msg.getBp().getField("username");
-		String password = msg.getBp().getField("password");
+		String name = message.str1;
+		String password = message.str2;
 		//System.out.println("name: " + name);
 		//System.out.println("pwd: " + password);
 		//System.out.println(server.userMap.get(name));
@@ -105,6 +111,7 @@ public class HubServ {
 	}
 
 	private ByteBuffer message(Message msg, ServerMatou server, SocketChannel sc) {
+		MessageOneString message = (MessageOneString) msg;
 		ByteBuffer bb = ByteBuffer.allocate(BUFFER_SIZE);
 		String name = "temp";
 		//TODO
@@ -120,14 +127,14 @@ public class HubServ {
 		ByteBuffer headerToSend = ByteBuffer.allocate(Byte.BYTES + Integer.BYTES);
 		bb.putInt(Opcode.MESSAGEBROADCAST.op);
 		ByteBuffer bodyToSend = ByteBuffer.allocate(BUFFER_SIZE);
-
+		System.out.println("Sending : " + name +" : " + message.str);
 		// add content to body's buffer
 		bodyToSend.put(UTF8.encode(name));
-		bodyToSend.put(UTF8.encode("data: " + msg.getBp().getField("data")));
+		bodyToSend.put(UTF8.encode("data: " + message.str));
 		bodyToSend.flip();
 
 		// Add content to header's buffer
-		headerToSend.put(msg.getEndFlag());
+		headerToSend.put(message.endFlag);
 		headerToSend.putInt(bodyToSend.remaining());
 		headerToSend.flip();
 
@@ -156,8 +163,8 @@ public class HubServ {
 	}
 	private ByteBuffer requestPrivate(Message msg, ServerMatou server, SocketChannel sc) {
 		ByteBuffer bb;
-
-		String name = msg.getBp().getField("userReq");
+		MessageOneString message = (MessageOneString) msg;
+		String name = message.str;
 		if (name == null) {
 			return null;
 		} else {
@@ -186,15 +193,25 @@ public class HubServ {
 	}
 
 	private ByteBuffer whispOk(Message msg, ServerMatou server, SocketChannel sc) {
-		BodyParser bp = msg.getBp();
-		String ip = bp.getField("ip");
-		String address = bp.getField("");
+		MessageIp message = (MessageIp) msg;
+		String username = message.username;
+		String userReq = message.userReq;
+		String ip = message.ip;
+		int port = message.port;
+		int token = message.token;
 		//System.out.println(msg.getBody());
-		return createMessage(Opcode.IPRESPONSE,(byte)1 ,msg.getBodyBuffer());
+		String strToSend = "username: " + username + "\r\n" 
+				+ "userReq: " + userReq + "\r\n"
+				+ "ip: " + ip + "\r\n" 
+				+ "port: " + port + "\r\n" 
+				+ "token: " + token + "\r\n";
+		ByteBuffer body = UTF8.encode(strToSend);
+		return createMessage(Opcode.IPRESPONSE,(byte)1 ,body );
 	}
 
 	private ByteBuffer whispRefused(Message msg, ServerMatou server, SocketChannel sc) {
-		return createMessage(Opcode.WHISP_REFUSED,(byte)1, UTF8.encode("username: " + msg.getBp().getField("username")));
+		MessageOneString message = (MessageOneString) msg;
+		return createMessage(Opcode.WHISP_REFUSED,(byte)1, UTF8.encode("username: " + message.str));
 		
 	}
 

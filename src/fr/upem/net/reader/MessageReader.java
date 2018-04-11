@@ -3,7 +3,14 @@ package fr.upem.net.reader;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-import fr.upem.net.server.Message;
+import fr.upem.net.message.Message;
+import fr.upem.net.message.MessageIp;
+import fr.upem.net.message.MessageOneString;
+import fr.upem.net.message.MessageOpcode;
+import fr.upem.net.message.MessageStringToken;
+import fr.upem.net.message.MessageTwoString;
+import fr.upem.net.other.Opcode;
+import fr.upem.net.parser.BodyParser;
 
 
 
@@ -84,14 +91,95 @@ public class MessageReader implements Reader {
 		return ProcessStatus.REFILL;
 	}
 	
-
+	
+	/**
+	 * Be careful ! This method contain typo issues if you don't
+	 * respect the Garfield Protocol
+	 */
 	@Override
 	public Message get() throws IOException {
-		// TODO Auto-generated method stub
-		
+		String username;
+		String userReq;
+		String password;
+		String data;
+		int port;
+		int token;
+		String ip;
 		if (state != State.DONE)
 			throw new IllegalStateException();
-		return new Message(body, headerSize,op,  endFlag);
+		BodyParser bp = BodyParser.readBody(body);
+		Opcode opcode = Opcode.valueOfId(op);
+		switch(opcode) {
+		case LOGIN:
+			username = bp.getField("username");
+			password = bp.getField("password");
+			return new MessageTwoString(op,endFlag, username, password);
+		case SIGNUP:
+			username = bp.getField("username");
+			password = bp.getField("password");
+			return new MessageTwoString(op,endFlag, username, password);
+			
+			
+		case MESSAGE:
+			data = bp.getField("data");
+			return new MessageOneString(op,endFlag, data);
+		
+		case WHISP:
+			username = bp.getField("username");
+			data = bp.getField("data");
+			return new MessageTwoString(op,endFlag, username,data);
+			
+		case MESSAGEBROADCAST:
+			username = bp.getField("username");
+			data = bp.getField("data");
+			return new MessageTwoString(op, endFlag, username, data);
+		
+		case REQUEST:
+			userReq = bp.getField("userReq");
+			return new MessageOneString(op,endFlag, userReq);
+			
+			
+		case FILE :
+			break;
+			
+		case IPRESPONSE:
+			username = bp.getField("username");
+			userReq = bp.getField("userReq");
+			ip = bp.getField("ip");
+			port = Integer.parseInt(bp.getField("port"));
+			token = Integer.parseInt(bp.getField("token"));
+			return new MessageIp(op,endFlag,ip,port, username, userReq,token);
+			
+			
+		case WHISP_OK:
+			username = bp.getField("username");
+			userReq = bp.getField("userReq");
+			ip = bp.getField("ip");
+			port = Integer.parseInt(bp.getField("port"));
+			token = Integer.parseInt(bp.getField("token"));
+			return new MessageIp(op,endFlag,ip,port, username, userReq,token);
+			
+		case WHISP_REQUEST:
+			username = bp.getField("username");
+			return new MessageOneString(op, endFlag, username);
+			
+		case WHISP_ERR:
+			userReq = bp.getField("userReq");
+			return new MessageOneString(op,endFlag, userReq);
+						
+		case WHISP_REFUSED:
+			userReq = bp.getField("userReq");
+			return new MessageOneString(op,endFlag, userReq);
+			
+		case CHECK_PRIVATE:
+			token = Integer.parseInt(bp.getField("token"));
+			username = bp.getField("username");
+			return new MessageStringToken(op, endFlag,username,token);
+
+		default:
+			return new MessageOpcode(op, endFlag);
+		}
+		return null; // new Message(body, headerSize,op,  endFlag);
 	}
 
 	@Override

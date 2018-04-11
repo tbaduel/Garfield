@@ -22,13 +22,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Logger;
 
-import fr.upem.net.other.Debug;
+import fr.upem.net.message.Message;
 import fr.upem.net.other.Opcode;
 import fr.upem.net.parser.ParserLine;
 import fr.upem.net.reader.MessageReader;
 import fr.upem.net.reader.Reader.ProcessStatus;
 import fr.upem.net.server.HubServ;
-import fr.upem.net.server.Message;
 
 public class ClientMatou {
 
@@ -85,7 +84,7 @@ public class ClientMatou {
 			ProcessStatus ps = messageReader.process();
 			if (ps == ProcessStatus.DONE) {
 				Message msg = messageReader.get();
-				client.hubClient.executeClient(Opcode.valueOfId(msg.getOp()), msg.getBp(), client, this);
+				client.hubClient.executeClient(Opcode.valueOfId(msg.getOp()), msg, client, this);
 				messageReader.reset();
 				bbin.compact();
 			} else {

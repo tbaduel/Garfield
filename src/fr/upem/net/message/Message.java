@@ -1,30 +1,33 @@
-package fr.upem.net.server;
+package fr.upem.net.message;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 
-import fr.upem.net.parser.BodyParser;
-
-public class Message {
+public abstract class Message {
 	private static final Charset UTF8 = Charset.forName("UTF-8");
-	private String body;
-	private BodyParser bp;
-	private int headerSize;
+	//private String body;
+	//private BodyParser bp;
+	//private int headerSize;
 	private int op;
-	private byte endFlag;
-	private final static int SIZE = 2 * Integer.BYTES + Byte.BYTES;
-	private ByteBuffer bodyBuffer;
+	public byte endFlag;
+	//private final static int SIZE = 2 * Integer.BYTES + Byte.BYTES;
+	//private ByteBuffer bodyBuffer;
 	
-	public Message(String body, int headerSize, int op, byte endFlag) throws IOException {
+	/*public Message(String body, int headerSize, int op, byte endFlag) throws IOException {
 		this.body = body;
 		this.bp = BodyParser.readBody(body);
 		this.headerSize = headerSize;
 		this.op = op;
 		this.endFlag = endFlag;
 		this.bodyBuffer = UTF8.encode(body);
+	}*/
+	
+	public Message(int op, byte endFlag) {
+		this.op = op;
+		this.endFlag = endFlag;
 	}
-
+	
+	
+	/*
 	public BodyParser getBp() {
 		return bp;
 	}
@@ -36,11 +39,12 @@ public class Message {
 	public int getHeaderSize() {
 		return headerSize;
 	}
-
+	*/
 	public int getOp() {
 		return op;
 	}
-
+	
+	/*
 	public byte getEndFlag() {
 		return endFlag;
 	}
@@ -64,5 +68,6 @@ public class Message {
 		
 	}
 	
+	*/
 	
 }

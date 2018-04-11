@@ -11,10 +11,14 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
 
+import fr.upem.net.client.ClientMatou.ContextClient;
+import fr.upem.net.message.Message;
+import fr.upem.net.message.MessageIp;
+import fr.upem.net.message.MessageOneString;
+import fr.upem.net.message.MessageStringToken;
+import fr.upem.net.message.MessageTwoString;
 import fr.upem.net.other.ColorText;
 import fr.upem.net.other.Opcode;
-import fr.upem.net.parser.BodyParser;
-import fr.upem.net.client.ClientMatou.ContextClient;
 
 public class HubClient {
 
@@ -55,34 +59,36 @@ public class HubClient {
 		return req;
 	}
 
-	public void messageBroadcast(BodyParser bp, ClientMatou client, ContextClient ctc ) {
+	public void messageBroadcast(Message msg, ClientMatou client, ContextClient ctc ) {
+		MessageTwoString message = (MessageTwoString) msg;
 		Date date = new Date();
 		Calendar calendar = GregorianCalendar.getInstance();
 		calendar.setTime(date);
 		ColorText.start(ColorText.BLUE);
 		System.out.print("[" + calendar.get(Calendar.HOUR_OF_DAY) + ":"
 				+ calendar.get(Calendar.MINUTE) + "] ");
-		System.out.println(ColorText.colorize(ColorText.GREEN, bp.getField("username"))
-				+ ": " + bp.getField("data"));
+		System.out.println(ColorText.colorize(ColorText.GREEN, message.str1)
+				+ ": " + message.str2);
 	}
 
-	public void receiveIpAddress(BodyParser bp, ClientMatou client , ContextClient ctc) {
+	public void receiveIpAddress(Message msg, ClientMatou client , ContextClient ctc) {
 		//System.out.println("Received IP to connect to: " + bp.getField("ip") + ":" + bp.getField("port"));
 		//if (!client.removeAwaitingUsers(bp.getField("userReq"))) {
 			//System.out.println("No user found to connect to. User : " + bp.getField("userReq"));
 			//return;
 		//}
 		try {
+			MessageIp message = (MessageIp) msg;
 			SocketChannel newsc = SocketChannel.open();
-			newsc.connect(new InetSocketAddress(bp.getField("ip"), Integer.parseInt(bp.getField("port"))));
+			newsc.connect(new InetSocketAddress(message.ip, message.port));
 			newsc.configureBlocking(false);
 			SelectionKey ClientKey = newsc.register(client.selector, SelectionKey.OP_CONNECT);
 			ContextClient ct = new ContextClient(client, ClientKey);
-			ct.setUserName(bp.getField("userReq"));
+			ct.setUserName(message.userReq);
 			ClientKey.attach(ct);
 			client.addConnectedUsers(ClientKey);
 			client.doConnect(ClientKey);
-			ct.queueMessage(formatBuffer(newsc,"username: "+ client.username + "\r\ntoken: " + bp.getField("token") ,Opcode.CHECK_PRIVATE.op));
+			ct.queueMessage(formatBuffer(newsc,"username: "+ client.username + "\r\ntoken: " + message.token ,Opcode.CHECK_PRIVATE.op));
 			/*client.ssc.register(client.selector, SelectionKey.OP_ACCEPT);
 			SocketChannel sc = client.ssc.accept();
 			if (sc == null)
@@ -98,29 +104,31 @@ public class HubClient {
 		// and connect here.
 	}
 	
-	public void checkPrivate(BodyParser bp, ClientMatou client, ContextClient ctc) {
-		int token = Integer.parseInt(bp.getField("token"));
+	public void checkPrivate(Message msg, ClientMatou client, ContextClient ctc) {
+		MessageStringToken message = (MessageStringToken) msg;
+		int token = message.token;
 		if (client.getToken() != token) {
 			ctc.silentlyClose();
 		}
-		String newUsername = bp.getField("username");
+		String newUsername = message.username;
 		if (newUsername != null){
 			ctc.setUserName(newUsername);
 		}
 		
 	}
 
-	public void authorizeIpAddress(BodyParser bp, ClientMatou client, ContextClient ctc) {
-		System.out.println(ColorText.colorize(ColorText.GREEN, bp.getField("username"))
-				+ " wants to communicate with you, to authorize requests, type /y " + bp.getField("username"));
-		client.addAwaitingUsers(bp.getField("username"));
+	public void authorizeIpAddress(Message msg, ClientMatou client, ContextClient ctc) {
+		MessageOneString message = (MessageOneString) msg;
+		System.out.println(ColorText.colorize(ColorText.GREEN, message.str)
+				+ " wants to communicate with you, to authorize requests, type /y " + message.str);
+		client.addAwaitingUsers(message.str);
 		//System.out.println("add username : " + bp.getField("username"));
 	}
 
-	public void executeClient(Opcode op, BodyParser bp, ClientMatou client, ContextClient ctc) {
+	public void executeClient(Opcode op, Message msg, ClientMatou client, ContextClient ctc) {
 		ClientFunction function = clientMap.get(op);
 		if (function != null) {
-			function.apply(bp, client, ctc);
+			function.apply(msg, client, ctc);
 		}
 	}
 
