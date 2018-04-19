@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Queue;
 import java.util.Scanner;
 import java.util.Set;
@@ -133,7 +134,7 @@ public class ServerMatou {
 						String ip = msg.getBp().getField("ip");
 						*/
 						MessageIp message = (MessageIp) msg;
-						//System.out.println("jenvoie la demande à :" + msg.getBp().getField("username"));
+						//System.out.println("jenvoie la demande ï¿½ :" + msg.getBp().getField("username"));
 						Context contextDest = server.getContextFromIP(server.getKeyFromMap(message.username));
 						contextDest.queueMessage(toSend);
 					}
@@ -320,12 +321,13 @@ public class ServerMatou {
 
 	static private int BUFFER_SIZE = 1_024;
 	static private Logger logger = Logger.getLogger(ServerMatou.class.getName());
-
+	//TODO
 	private final ServerSocketChannel serverSocketChannel;
 	private final Selector selector;
 	private final Set<SelectionKey> selectedKeys;
 	final HashMap<SocketAddress, String> map; // Address => Username
 	final HashMap<String, String> userMap; // Username => password
+	final HashMap<String, Set<String>> pendingConnection; // Username => { Username : not connected yet }
 	final BlockingQueue<String> consoleQueue;
 	private Thread console;
 
@@ -340,6 +342,8 @@ public class ServerMatou {
 		map = new HashMap<>();
 		userMap = new HashMap<>();
 		consoleQueue = new LinkedBlockingQueue<>();
+		pendingConnection = new HashMap<>();
+		
 	}
 	
 	private SocketAddress getKeyFromMap( String username) {

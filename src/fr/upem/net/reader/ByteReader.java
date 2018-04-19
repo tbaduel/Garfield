@@ -20,7 +20,6 @@ public class ByteReader implements Reader {
 		if (state == State.DONE || state == State.ERROR) {
 			throw new IllegalStateException();
 		}
-		//bb.flip();
 		try {
 			if (bb.remaining() >= Byte.BYTES) {
 				value = bb.get();
@@ -29,8 +28,8 @@ public class ByteReader implements Reader {
 			} else {
 				return ProcessStatus.REFILL;
 			}
-		} finally {
-			//bb.compact();
+		} catch (IllegalArgumentException | IllegalStateException ie) {
+			return ProcessStatus.ERROR;
 		}
 
 	}

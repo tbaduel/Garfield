@@ -7,6 +7,8 @@ import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 
 import fr.upem.net.message.Message;
 import fr.upem.net.message.MessageIp;
@@ -182,6 +184,13 @@ public class HubServ {
 					String requester = server.map.get(sc.getRemoteAddress());
 					ByteBuffer bodyToSend = UTF8.encode("username: " + requester + "\r\n");
 					bb = createMessage(Opcode.WHISP_REQUEST,(byte)1, bodyToSend);
+					System.out.println("\t\t<=============================>");
+					System.out.println("This user: " + requester + " wants to talk to " + name);
+					Set<String> pendingForUser = server.pendingConnection.get(name);
+					if (pendingForUser != null) {
+						pendingForUser.add(requester);
+						server.pendingConnection.put(name, pendingForUser);
+					}
 				} catch (IOException e) {
 					return null;
 				}
@@ -197,16 +206,22 @@ public class HubServ {
 		String username = message.username;
 		String userReq = message.userReq;
 		String ip = message.ip;
-		int port = message.port;
-		int token = message.token;
-		//System.out.println(msg.getBody());
-		String strToSend = "username: " + username + "\r\n" 
-				+ "userReq: " + userReq + "\r\n"
-				+ "ip: " + ip + "\r\n" 
-				+ "port: " + port + "\r\n" 
-				+ "token: " + token + "\r\n";
-		ByteBuffer body = UTF8.encode(strToSend);
-		return createMessage(Opcode.IPRESPONSE,(byte)1 ,body );
+		System.out.println("\t\t<=============================>");
+		System.out.println("This user: " + userReq + " accepted " + username);
+		Set<String> validation = server.pendingConnection.get(userReq);
+		if (validation != null && validation.contains(username)) {
+			int port = message.port;
+			int token = message.token;
+			//System.out.println(msg.getBody());
+			String strToSend = "username: " + username + "\r\n" 
+					+ "userReq: " + userReq + "\r\n"
+					+ "ip: " + ip + "\r\n" 
+					+ "port: " + port + "\r\n" 
+					+ "token: " + token + "\r\n";
+			ByteBuffer body = UTF8.encode(strToSend);
+			return createMessage(Opcode.IPRESPONSE,(byte)1 ,body );
+		}
+		return createMessage(Opcode.WHISP_REFUSED,(byte)1, UTF8.encode("username: " + message.userReq));
 	}
 
 	private ByteBuffer whispRefused(Message msg, ServerMatou server, SocketChannel sc) {

@@ -38,6 +38,9 @@ public class StringReader implements Reader {
 			}
 
 			if (state == State.WAITING_STRING) {
+				if (size <= 0) {
+					return ProcessStatus.ERROR;
+				}
 				if (bb.remaining() >= size) {
 					ByteBuffer tmp = readBytes(size);
 					tmp.flip();
@@ -50,13 +53,9 @@ public class StringReader implements Reader {
 				return ProcessStatus.REFILL;
 			//System.out.println("after REfill");
 
-		} catch (IOException e) {
-			// Error case
-
-		} finally {
-			//System.out.println("Sors du String Reader");
-			//bb.compact();
-		}
+		} catch (IllegalStateException | IllegalArgumentException | IOException ie) {
+			return ProcessStatus.ERROR;
+		} 
 		return ProcessStatus.REFILL;
 
 	}

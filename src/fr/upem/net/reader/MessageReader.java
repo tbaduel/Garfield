@@ -40,15 +40,11 @@ public class MessageReader implements Reader {
 			throw new IllegalStateException();
 		}
 		ProcessStatus ps;
-		//System.out.println("~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~");
 		IntReader iRead = new IntReader(bb);
 		ByteReader bRead = new ByteReader(bb);
 		StringReader strRead = new StringReader(bb);
-		//System.out.println("Remaining : "+ bb.remaining());
 		if (state == State.WAITING_OP) {
 			ps = iRead.process();
-			//System.out.println("OP process");
-			//System.out.println(ps);
 			if (ps == ProcessStatus.DONE) {
 				op = (Integer) iRead.get();
 				iRead.reset();
@@ -85,6 +81,10 @@ public class MessageReader implements Reader {
 				//System.out.println("STR READ");
 				return ProcessStatus.DONE;
 			}
+		}
+		if (state == State.ERROR) {
+			System.err.println("ERROR PROCESS");
+			return ProcessStatus.ERROR;
 		}
 		//System.out.println("~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~");
 		//bb.compact();

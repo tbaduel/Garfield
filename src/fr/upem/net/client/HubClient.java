@@ -43,6 +43,7 @@ public class HubClient {
 	 * @throws IOException
 	 */
 	public static ByteBuffer formatBuffer(SocketChannel sc, String bodyString, int id) throws IOException {
+		
 		ByteBuffer body = UTF8.encode(bodyString);
 		byte endMsg = (byte) 1; // change
 		ByteBuffer header = ByteBuffer.allocate(HEADER_SIZE);
@@ -60,6 +61,7 @@ public class HubClient {
 	}
 
 	public void messageBroadcast(Message msg, ClientMatou client, ContextClient ctc ) {
+		System.out.println("My token is: " + client.getToken());
 		MessageTwoString message = (MessageTwoString) msg;
 		Date date = new Date();
 		Calendar calendar = GregorianCalendar.getInstance();
@@ -72,36 +74,27 @@ public class HubClient {
 	}
 
 	public void receiveIpAddress(Message msg, ClientMatou client , ContextClient ctc) {
-		//System.out.println("Received IP to connect to: " + bp.getField("ip") + ":" + bp.getField("port"));
-		//if (!client.removeAwaitingUsers(bp.getField("userReq"))) {
-			//System.out.println("No user found to connect to. User : " + bp.getField("userReq"));
-			//return;
-		//}
 		try {
 			MessageIp message = (MessageIp) msg;
-			SocketChannel newsc = SocketChannel.open();
-			newsc.connect(new InetSocketAddress(message.ip, message.port));
-			newsc.configureBlocking(false);
-			SelectionKey ClientKey = newsc.register(client.selector, SelectionKey.OP_CONNECT);
-			ContextClient ct = new ContextClient(client, ClientKey);
-			ct.setUserName(message.userReq);
-			ClientKey.attach(ct);
-			client.addConnectedUsers(ClientKey);
-			client.doConnect(ClientKey);
-			ct.queueMessage(formatBuffer(newsc,"username: "+ client.username + "\r\ntoken: " + message.token ,Opcode.CHECK_PRIVATE.op));
-			/*client.ssc.register(client.selector, SelectionKey.OP_ACCEPT);
-			SocketChannel sc = client.ssc.accept();
-			if (sc == null)
-				return; 
-			sc.configureBlocking(false);
-			SelectionKey ClientKey = sc.register(client.selector, SelectionKey.OP_READ);
-			Context ct = new Context(client, ClientKey);
-			ct.setUserName(bp.getField("username"));
-			ClientKey.attach(ct);*/
+			System.out.println("message token: " + message.token + " to client token: " + client.getToken());
+			if (message.token == client.getToken()) {
+				SocketChannel newsc = SocketChannel.open();
+				newsc.connect(new InetSocketAddress(message.ip, message.port));
+				newsc.configureBlocking(false);
+				SelectionKey ClientKey = newsc.register(client.selector, SelectionKey.OP_CONNECT);
+				ContextClient ct = new ContextClient(client, ClientKey);
+				ct.setUserName(message.userReq);
+				ClientKey.attach(ct);
+				client.addConnectedUsers(ClientKey);
+				client.doConnect(ClientKey);
+				ct.queueMessage(formatBuffer(newsc,"username: "+ client.username + "\r\ntoken: " + message.token ,Opcode.CHECK_PRIVATE.op));
+			} else {
+				//TODO remove this v
+				System.err.println("Wrong token");
+			}
 		} catch (IOException e) {
-			client.log.severe("IOException!!");
+			System.err.println("IOException!!");
 		}
-		// and connect here.
 	}
 	
 	public void checkPrivate(Message msg, ClientMatou client, ContextClient ctc) {

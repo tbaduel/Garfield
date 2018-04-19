@@ -4,23 +4,24 @@ import java.nio.ByteBuffer;
 
 public class IntReader implements Reader {
 
-    private enum State {DONE,WAITING,ERROR};
+	private enum State {
+		DONE, WAITING, ERROR
+	};
 
-    private final ByteBuffer bb;
-    private State state = State.WAITING;
-    private int value;
+	private final ByteBuffer bb;
+	private State state = State.WAITING;
+	private int value;
 
-    public IntReader(ByteBuffer bb) {
-        this.bb = bb;
-    }
+	public IntReader(ByteBuffer bb) {
+		this.bb = bb;
+	}
 
-    @Override
-    public ProcessStatus process() {
-        if (state==State.DONE || state==State.ERROR) {
-            throw new IllegalStateException();
-        }
-        //bb.flip();
-        try {
+	@Override
+	public ProcessStatus process() {
+		if (state == State.DONE || state == State.ERROR) {
+			throw new IllegalStateException();
+		}
+		try {
             if (bb.remaining() >= Integer.BYTES) {
                 value = bb.getInt();
                 state = State.DONE;
@@ -29,23 +30,22 @@ public class IntReader implements Reader {
             } else {
                 return ProcessStatus.REFILL;
             }
-        } finally {
-            //bb.compact();
+        } catch (IllegalStateException | IllegalArgumentException ie) {
+        	return ProcessStatus.ERROR;
         }
 
+	}
 
-    }
+	@Override
+	public Object get() {
+		if (state != State.DONE) {
+			throw new IllegalStateException();
+		}
+		return value;
+	}
 
-    @Override
-    public Object get() {
-        if (state!=State.DONE) {
-            throw new IllegalStateException();
-        }
-        return value;
-    }
-
-    @Override
-    public void reset() {
-        state=State.WAITING;
-    }
+	@Override
+	public void reset() {
+		state = State.WAITING;
+	}
 }

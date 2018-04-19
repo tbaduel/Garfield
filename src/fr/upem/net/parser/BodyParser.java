@@ -1,9 +1,13 @@
 package fr.upem.net.parser;
 
 import java.io.IOException;
+import java.util.ArrayList;
 //import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 
 public class BodyParser {
@@ -20,7 +24,7 @@ public class BodyParser {
     public static BodyParser create(int size, Map<String,String> fields) {
         Map<String,String> fieldsCopied = new HashMap<>();
         for (String s : fields.keySet())
-            fieldsCopied.put(s,fields.get(s).trim().toLowerCase());
+            fieldsCopied.put(s,fields.get(s).trim());
         return new BodyParser(size, fieldsCopied);
     }
     
@@ -42,6 +46,11 @@ public class BodyParser {
     	return size;
     }
     
+    /*
+     * data: jean: "je suis là"
+     * 
+     */
+    
     /**
 	 * @return The BodyParser object corresponding to the body read as fields
 	 * @throws IOException
@@ -56,16 +65,26 @@ public class BodyParser {
 		for (String line : lines) {
 			if (line.equals("") || line.isEmpty()) {
 				continue;
-			}
-			String[] keyvalue = line.split(": ");
-			
-			if (keyvalue.length > 1 && keyvalue[0].length() > 0 && keyvalue[1].length() > 0) {
-				map.merge(keyvalue[0].toLowerCase(), keyvalue[1], (x, y) -> String.join("; ", x, y));
-			} else {
-				map.merge(keyvalue[0].toLowerCase(), "", (x, y) -> String.join("; ", x, y));
+			}			
+			Pattern pattern = Pattern.compile(": *");
+			Matcher matcher = pattern.matcher(line);
+			if (matcher.find()) {
+			    String key = line.substring(0, matcher.start());
+			    String value = line.substring(matcher.end());
+			    if (value != null && key.length() > 0 && value.length() > 0) {
+					map.merge(key.toLowerCase(), value, (x, y) -> String.join("; ", x, y));
+				} else {
+					map.merge(key.toLowerCase(), "", (x, y) -> String.join("; ", x, y));
+				}
 			}
 		}
 		
 		return BodyParser.create(size, map);
+	}
+	
+	public static List<String> splitter(String data) {
+		List<String> ret = new ArrayList<>();
+		
+		return null;
 	}
 }
