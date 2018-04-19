@@ -10,9 +10,10 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
-import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
-import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.Random;
@@ -23,6 +24,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Logger;
 
 import fr.upem.net.message.Message;
+import fr.upem.net.message.MessageOneString;
 import fr.upem.net.other.Opcode;
 import fr.upem.net.parser.ParserLine;
 import fr.upem.net.reader.MessageReader;
@@ -68,6 +70,10 @@ public class ClientMatou {
 			// added for whisper
 			this.username = username;
 		}
+		
+		public SelectionKey getSelectionKey() {
+			return key;
+		}
 
 		/**
 		 * Process the content of bbin
@@ -84,9 +90,15 @@ public class ClientMatou {
 			ProcessStatus ps = messageReader.process();
 			if (ps == ProcessStatus.DONE) {
 				Message msg = messageReader.get();
+				System.out.println("checking private");
+				if (Opcode.valueOfId(msg.getOp()) != Opcode.CHECK_PRIVATE && !client.connectedClients.contains(key)) {
+					silentlyClose();
+					return ;
+				}
 				client.hubClient.executeClient(Opcode.valueOfId(msg.getOp()), msg, client, this);
 				messageReader.reset();
 				bbin.compact();
+				
 			} else {
 				// System.out.println("not done");
 			}
@@ -208,8 +220,9 @@ public class ClientMatou {
 
 			/* Two option */
 			// System.out.println("WRITING " + sc.write(bbout));
+			System.out.println("WRITING TO "  + sc.getRemoteAddress());
 			sc.write(bbout);
-
+			System.out.println("WROTE TO "  + sc.getRemoteAddress());
 			bbout.compact();
 			// System.out.println("Il reste a envoyer " + bbout);
 			updateInterestOps();
@@ -268,9 +281,8 @@ public class ClientMatou {
 	private final HubClient hubClient = new HubClient();
 	final private Queue<ByteBuffer> queue = new LinkedBlockingQueue<>();
 	// final private Queue<ByteBuffer> serverQueue = new LinkedList<>();
-	final private List<SelectionKey> connectedClients = new ArrayList<>();
+	final private Set<SelectionKey> connectedClients = new HashSet<>();
 	private Scanner scan;
-	private Queue<String> awaitingUsers = new LinkedList<>();
 	private final int port;
 	private final String address;
 	private final int token;
@@ -280,9 +292,11 @@ public class ClientMatou {
 	private final ConcurrentHashMap<String, ByteBuffer> mapWhisperMessage = new ConcurrentHashMap<>();
 	public String username;
 	public String usernameWhisper;
-
+	private Random rand = new Random();
+	private Map<String, Integer> pendingConnectionToken = new HashMap<>();
+	
 	public ClientMatou(SocketChannel sc, Scanner scan, int port, String address) throws IOException {
-		Random rand = new Random();
+		
 		ssc = ServerSocketChannel.open();
 		ssc.bind(null);
 		ssc.configureBlocking(false);
@@ -294,10 +308,15 @@ public class ClientMatou {
 		selector = Selector.open();
 		selectedKeys = selector.selectedKeys();
 		ssc.register(selector, SelectionKey.OP_ACCEPT);
-		token = rand.nextInt(10000000);
+		System.out.println("SERVER IS ON " + ssc.getLocalAddress());
+		token = generateToken();
 		// System.out.println("mon port est : " + this.port);
 	}
 
+	public int generateToken() {
+		return rand.nextInt(10000000);
+	}
+	
 	public void setUsername(String username) {
 		this.username = username;
 	}
@@ -407,8 +426,9 @@ public class ClientMatou {
 				if (parser.opcode == Opcode.ERROR) {
 					System.out.println("Erreur de saisie");
 				} else if (parser.opcode == Opcode.WHISP) {
+					System.out.println("user whispered = " + parser.userWhispered);
 					if (getNameInKeys(parser.userWhispered).isPresent()) {
-						// System.out.println(parser.userWhispered + " is present !");
+						System.out.println(parser.userWhispered + " is present !");
 						userWhispered = parser.userWhispered; // for whispers
 						mapWhisperMessage.put(userWhispered, req);
 					}
@@ -461,11 +481,19 @@ public class ClientMatou {
 	}
 
 	public void addAwaitingUsers(String user) {
-		awaitingUsers.add(user);
+		pendingConnectionToken.put(user, generateToken());
+	}
+	
+	public void addAwaitingUsers(String user, int token) {
+		pendingConnectionToken.put(user, token);
+	}
+	
+	public Optional<Integer> getPendingConnectionToken(String user) {
+		return Optional.of(pendingConnectionToken.get(user));
 	}
 
-	public String removeAwaitingUsers(String user) {
-		return awaitingUsers.poll();
+	public int removePendingConnectionToken(String user) {
+		return pendingConnectionToken.remove(user);
 	}
 
 	public void addConnectedUsers(SelectionKey client) {
@@ -503,16 +531,12 @@ public class ClientMatou {
 		System.out.println("Quelqu'un s'est connectï¿½!");
 		sc.configureBlocking(false);
 		SelectionKey ClientKey = sc.register(selector, SelectionKey.OP_READ);
-		String usernameWhisper = awaitingUsers.poll();
-		if (usernameWhisper == null) {
-			// System.out.println("shouldnt be null");
-		}
 		ContextClient ct = new ContextClient(this, ClientKey);
 		ClientKey.attach(ct);
 		// System.out.println("===============+++>ADDING:");
 		// System.out.println(ct);
 		// TODO
-		addConnectedUsers(ClientKey);
+		//addConnectedUsers(ClientKey);
 
 	}
 
@@ -540,6 +564,7 @@ public class ClientMatou {
 		uniqueKey = sc.register(selector, SelectionKey.OP_CONNECT);
 		serverContext = new ContextClient(this, uniqueKey);
 		uniqueKey.attach(serverContext);
+		addConnectedUsers(uniqueKey); // pour que le serveur soit considéré comme connecté.
 		Set<SelectionKey> selectedKeys = selector.selectedKeys();
 		Thread reader = new Thread(this::beginChat);
 		reader.start();
@@ -552,7 +577,7 @@ public class ClientMatou {
 			}
 			fillBuffers();
 			// Debug.printKeys(selector);
-			// System.out.println("Selecting keys");
+			System.out.println("Selecting keys");
 			selector.select();
 			// Debug.printSelectedKey(selectedKeys);
 			processSelectedKeys();

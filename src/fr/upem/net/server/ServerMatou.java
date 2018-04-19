@@ -327,7 +327,7 @@ public class ServerMatou {
 	private final Set<SelectionKey> selectedKeys;
 	final HashMap<SocketAddress, String> map; // Address => Username
 	final HashMap<String, String> userMap; // Username => password
-	final HashMap<String, Set<String>> pendingConnection; // Username => { Username : not connected yet }
+	final HashMap<String, Set<String>> pendingConnection; // Username => { Usernames }
 	final BlockingQueue<String> consoleQueue;
 	private Thread console;
 

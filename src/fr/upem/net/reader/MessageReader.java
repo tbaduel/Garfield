@@ -172,6 +172,7 @@ public class MessageReader implements Reader {
 			return new MessageOneString(op,endFlag, userReq);
 			
 		case CHECK_PRIVATE:
+			System.out.println("token: " + bp.getField("token"));
 			token = Integer.parseInt(bp.getField("token"));
 			username = bp.getField("username");
 			return new MessageStringToken(op, endFlag,username,token);

@@ -34,6 +34,7 @@ public class HubClient {
 		clientMap.put(Opcode.WHISP_REQUEST, this::authorizeIpAddress);
 		clientMap.put(Opcode.IPRESPONSE, this::receiveIpAddress);
 		clientMap.put(Opcode.CHECK_PRIVATE, this::checkPrivate);
+		clientMap.put(Opcode.WHISP_ERR, this::errorIpAddress);
 	}
 
 	/**
@@ -43,7 +44,7 @@ public class HubClient {
 	 * @throws IOException
 	 */
 	public static ByteBuffer formatBuffer(SocketChannel sc, String bodyString, int id) throws IOException {
-		
+
 		ByteBuffer body = UTF8.encode(bodyString);
 		byte endMsg = (byte) 1; // change
 		ByteBuffer header = ByteBuffer.allocate(HEADER_SIZE);
@@ -55,59 +56,61 @@ public class HubClient {
 		req.putInt(header.remaining());
 		req.put(header);
 		req.put(body);
-		//req.flip();
-		//System.out.println(req);
+		// req.flip();
+		// System.out.println(req);
 		return req;
 	}
 
-	public void messageBroadcast(Message msg, ClientMatou client, ContextClient ctc ) {
+	public void messageBroadcast(Message msg, ClientMatou client, ContextClient ctc) {
 		System.out.println("My token is: " + client.getToken());
 		MessageTwoString message = (MessageTwoString) msg;
 		Date date = new Date();
 		Calendar calendar = GregorianCalendar.getInstance();
 		calendar.setTime(date);
 		ColorText.start(ColorText.BLUE);
-		System.out.print("[" + calendar.get(Calendar.HOUR_OF_DAY) + ":"
-				+ calendar.get(Calendar.MINUTE) + "] ");
-		System.out.println(ColorText.colorize(ColorText.GREEN, message.str1)
-				+ ": " + message.str2);
+		System.out.print("[" + calendar.get(Calendar.HOUR_OF_DAY) + ":" + calendar.get(Calendar.MINUTE) + "] ");
+		System.out.println(ColorText.colorize(ColorText.GREEN, message.str1) + ": " + message.str2);
 	}
 
-	public void receiveIpAddress(Message msg, ClientMatou client , ContextClient ctc) {
+	public void receiveIpAddress(Message msg, ClientMatou client, ContextClient ctc) {
 		try {
 			MessageIp message = (MessageIp) msg;
-			System.out.println("message token: " + message.token + " to client token: " + client.getToken());
-			if (message.token == client.getToken()) {
-				SocketChannel newsc = SocketChannel.open();
-				newsc.connect(new InetSocketAddress(message.ip, message.port));
-				newsc.configureBlocking(false);
-				SelectionKey ClientKey = newsc.register(client.selector, SelectionKey.OP_CONNECT);
-				ContextClient ct = new ContextClient(client, ClientKey);
-				ct.setUserName(message.userReq);
-				ClientKey.attach(ct);
-				client.addConnectedUsers(ClientKey);
-				client.doConnect(ClientKey);
-				ct.queueMessage(formatBuffer(newsc,"username: "+ client.username + "\r\ntoken: " + message.token ,Opcode.CHECK_PRIVATE.op));
-			} else {
-				//TODO remove this v
-				System.err.println("Wrong token");
-			}
+			System.out.println("message token from username: " + message.username + " - " + message.token
+					+ " to client token: " + client.getToken());
+			client.addAwaitingUsers(message.userReq, message.token);
+			SocketChannel newsc = SocketChannel.open();
+			newsc.connect(new InetSocketAddress(message.ip, message.port));
+			newsc.configureBlocking(false);
+			SelectionKey ClientKey = newsc.register(client.selector, SelectionKey.OP_CONNECT);
+			ContextClient ct = new ContextClient(client, ClientKey);
+			ct.setUserName(message.userReq);
+			ClientKey.attach(ct);
+			client.doConnect(ClientKey);
+			client.addConnectedUsers(ClientKey);
+			System.out.println("SETTING USERNAME: " + message.userReq);
+			System.out.println("QUEUING MESSAGE FOR PRIVATE");
+			ct.queueMessage(formatBuffer(newsc, "username: " + client.username + "\r\ntoken: " + client.getPendingConnectionToken(message.userReq).orElse(-1).toString(),
+					Opcode.CHECK_PRIVATE.op));
 		} catch (IOException e) {
 			System.err.println("IOException!!");
 		}
 	}
-	
+
 	public void checkPrivate(Message msg, ClientMatou client, ContextClient ctc) {
 		MessageStringToken message = (MessageStringToken) msg;
 		int token = message.token;
-		if (client.getToken() != token) {
+		System.out.println("checking private, token: " + token);
+		if (client.getPendingConnectionToken(message.username).orElse(-1) != token) {
 			ctc.silentlyClose();
 		}
+		
 		String newUsername = message.username;
-		if (newUsername != null){
+		if (newUsername != null) {
 			ctc.setUserName(newUsername);
 		}
-		
+		client.addConnectedUsers(ctc.getSelectionKey());
+		client.removePendingConnectionToken(message.username);
+
 	}
 
 	public void authorizeIpAddress(Message msg, ClientMatou client, ContextClient ctc) {
@@ -115,7 +118,7 @@ public class HubClient {
 		System.out.println(ColorText.colorize(ColorText.GREEN, message.str)
 				+ " wants to communicate with you, to authorize requests, type /y " + message.str);
 		client.addAwaitingUsers(message.str);
-		//System.out.println("add username : " + bp.getField("username"));
+		// System.out.println("add username : " + bp.getField("username"));
 	}
 
 	public void executeClient(Opcode op, Message msg, ClientMatou client, ContextClient ctc) {
@@ -123,6 +126,11 @@ public class HubClient {
 		if (function != null) {
 			function.apply(msg, client, ctc);
 		}
+	}
+
+	public void errorIpAddress(Message msg, ClientMatou client, ContextClient ctc) {
+		MessageOneString message = (MessageOneString) msg;
+		System.err.println(message.str + " failed to communicate with you.");
 	}
 
 }

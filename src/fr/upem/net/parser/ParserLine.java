@@ -42,7 +42,7 @@ public class ParserLine {
 				return new ParserLine(Opcode.ERROR, "");
 			}
 			return new ParserLine(opcode,
-					"data: " + trimline.substring(words[1].length() + 3).trim() + "\r\n" + "username: " + words[1],
+					"data: " + trimline.substring(words[1].length() + 3).trim() + "\r\n" + "username: " + client.username,
 					words[1]);
 		} else if (line.equals("/f")) {
 			opcode = Opcode.FILE;
@@ -57,10 +57,11 @@ public class ParserLine {
 			if (words.length < 2) {
 				return new ParserLine(Opcode.ERROR, "");
 			}
+			System.out.println("sent: " + client.getPendingConnectionToken(words[1]).orElse(0).intValue());
 			return new ParserLine(opcode,
 					"username: " + words[1] + "\r\n" + "userReq: " + client.username + "\r\n" + "ip: "
 							+ client.getAddress() + "\r\n" + "port: " + client.getPort() + "\r\n" + "token: "
-							+ client.getToken() + "\r\n");
+							+ client.getPendingConnectionToken(words[1]).orElse(0).intValue() + "\r\n");
 		} else
 			return new ParserLine(opcode, "data: " + rawline + "\r\n");
 	}
