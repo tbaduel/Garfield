@@ -139,8 +139,15 @@ public class MessageReader implements Reader {
 			return new MessageOneString(op,endFlag, userReq);
 			
 			
-		case FILE :
-			break;
+		case FILE_REQUEST :
+			username = bp.getField("username");
+			data = bp.getField("file");
+			return new MessageTwoString(op, endFlag, username, data);
+			
+		case FILE_OK :
+			username = bp.getField("username");
+			data = bp.getField("file");
+			return new MessageTwoString(op,endFlag, username, data);
 			
 		case IPRESPONSE:
 			username = bp.getField("username");
@@ -180,7 +187,6 @@ public class MessageReader implements Reader {
 		default:
 			return new MessageOpcode(op, endFlag);
 		}
-		return null; // new Message(body, headerSize,op,  endFlag);
 	}
 
 	@Override

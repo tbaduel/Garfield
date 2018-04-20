@@ -35,6 +35,9 @@ public class HubServ {
 	}
 
 	public ByteBuffer ServerExecute(Message msg, ServerMatou server, SocketChannel sc) throws IOException {
+		if (msg == null) {
+			return null;
+		}
 		Opcode opcode = Opcode.valueOfId(msg.getOp());
 		ServerFunction fnt = map.get(opcode);
 		if (fnt == null || (server == null && msg.getOp() != Opcode.MESSAGE.op)) { // added for whisper

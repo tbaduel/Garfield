@@ -1,6 +1,7 @@
 package fr.upem.net.client;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
@@ -35,6 +36,8 @@ public class HubClient {
 		clientMap.put(Opcode.IPRESPONSE, this::receiveIpAddress);
 		clientMap.put(Opcode.CHECK_PRIVATE, this::checkPrivate);
 		clientMap.put(Opcode.WHISP_ERR, this::errorIpAddress);
+		clientMap.put(Opcode.FILE_REQUEST, this::sendFileRequest);
+		clientMap.put(Opcode.FILE_OK, this::acceptedFileRequest);
 	}
 
 	/**
@@ -79,6 +82,7 @@ public class HubClient {
 					+ " to client token: " + client.getToken());
 			client.addAwaitingUsers(message.userReq, message.token);
 			SocketChannel newsc = SocketChannel.open();
+			
 			newsc.connect(new InetSocketAddress(message.ip, message.port));
 			newsc.configureBlocking(false);
 			SelectionKey ClientKey = newsc.register(client.selector, SelectionKey.OP_CONNECT);
@@ -119,6 +123,7 @@ public class HubClient {
 				+ " wants to communicate with you, to authorize requests, type /y " + message.str);
 		client.addAwaitingUsers(message.str);
 		// System.out.println("add username : " + bp.getField("username"));
+		
 	}
 
 	public void executeClient(Opcode op, Message msg, ClientMatou client, ContextClient ctc) {
@@ -133,4 +138,19 @@ public class HubClient {
 		System.err.println(message.str + " failed to communicate with you.");
 	}
 
+	public void sendFileRequest(Message msg, ClientMatou client, ContextClient ctc) {
+		MessageTwoString message = (MessageTwoString) msg;
+		System.out.println(ColorText.colorize(ColorText.GREEN, message.str1)
+				+ " wants to send you a file named: " + message.str2 + ", to authorize the file, type /o " + message.str1 + " " + message.str2);		
+		client.addAwaitingFileUser(message.str2, message.str1);
+	}
+	
+	public void acceptedFileRequest(Message msg, ClientMatou client, ContextClient ctc) {
+		MessageTwoString message = (MessageTwoString) msg;
+		System.out.println("Sending file : "+ message.str2 +" to " + message.str1);
+		//System.out.println("Use /f " + message.str + "path/to/your/file to send a file to " + message.str);
+		client.addAuthorizedToSendFile(ctc.getSelectionKey());
+		
+		
+	}
 }

@@ -22,9 +22,9 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Logger;
+import java.util.stream.Stream;
 
 import fr.upem.net.message.Message;
-import fr.upem.net.message.MessageOneString;
 import fr.upem.net.other.Opcode;
 import fr.upem.net.parser.ParserLine;
 import fr.upem.net.reader.MessageReader;
@@ -90,7 +90,7 @@ public class ClientMatou {
 			ProcessStatus ps = messageReader.process();
 			if (ps == ProcessStatus.DONE) {
 				Message msg = messageReader.get();
-				System.out.println("checking private");
+				System.out.println("MESSAGE RECUP");
 				if (Opcode.valueOfId(msg.getOp()) != Opcode.CHECK_PRIVATE && !client.connectedClients.contains(key)) {
 					silentlyClose();
 					return ;
@@ -280,8 +280,10 @@ public class ClientMatou {
 	final private MessageReader messageReader = new MessageReader(bbin);
 	private final HubClient hubClient = new HubClient();
 	final private Queue<ByteBuffer> queue = new LinkedBlockingQueue<>();
+	final private Queue<ByteBuffer> queueFile = new LinkedBlockingQueue<>();
 	// final private Queue<ByteBuffer> serverQueue = new LinkedList<>();
 	final private Set<SelectionKey> connectedClients = new HashSet<>();
+	final private Set<SelectionKey> authorizedToSendFile = new HashSet<>();
 	private Scanner scan;
 	private final int port;
 	private final String address;
@@ -294,6 +296,7 @@ public class ClientMatou {
 	public String usernameWhisper;
 	private Random rand = new Random();
 	private Map<String, Integer> pendingConnectionToken = new HashMap<>();
+	private Map<String, Set<String>> pendingConnectionFile = new HashMap<>();
 	
 	public ClientMatou(SocketChannel sc, Scanner scan, int port, String address) throws IOException {
 		
@@ -315,6 +318,26 @@ public class ClientMatou {
 
 	public int generateToken() {
 		return rand.nextInt(10000000);
+	}
+	
+	public void addAuthorizedToSendFile(SelectionKey key) {
+		authorizedToSendFile.add(key);
+	}
+	
+	public void addAwaitingFileUser(String user, String file) {
+		Set<String> files = pendingConnectionFile.get(user);
+		if (files == null) {
+			files = new HashSet<String>();
+		}
+		files.add(file);
+		pendingConnectionFile.put(user, files);
+	}
+	
+	public void addAuthorizedToSendFile(Optional<SelectionKey> key) {		
+		if (!key.isPresent()) {
+			return ;
+		}
+		authorizedToSendFile.add(key.get());
 	}
 	
 	public void setUsername(String username) {
@@ -404,16 +427,25 @@ public class ClientMatou {
 		// System.out.println("context: " + key.attachment());
 		// System.out.println("name: " + ((ContextClient)key.attachment()).username);
 		// }
-		return connectedClients.stream().filter(x -> ((ContextClient) x.attachment()).username.equals(user))
-				.findFirst();
+		try {
+			Stream<SelectionKey> stream = connectedClients.stream().filter(x -> ((ContextClient) x.attachment()).username.equals(user));
+			return stream.findFirst();
+		} catch (NullPointerException e) {
+			return Optional.empty();
+		}
 	}
-	/*
-	 * [18:27] tikko to localhost: salut les amis [18:27] tikko to localhost: /r
-	 * thomas [18:27] localhost to thomas: DEMANDE DE TIKKO DE MESSAGE PRIVE (O/N)
-	 * [18:27] thomas to localhost: O /w thomas salut mon frere [18:27] tikko to
-	 * thomas: salut mon frere /f [nom] file /r [nom] whisper
-	 */
 
+	public boolean isUserAuthorizedToSendFile(Optional<SelectionKey> key) {
+		if (!key.isPresent()) {
+			return false;
+		}
+		return authorizedToSendFile.contains(key.get());
+	}
+
+	public void sendFile(ByteBuffer req, String file) {
+		System.out.println("Sending file !");
+	}
+	
 	public void beginChat() {
 		try {
 			while (!Thread.interrupted()) {
@@ -423,33 +455,23 @@ public class ClientMatou {
 				}
 				ParserLine parser = ParserLine.parse(line, this);
 				ByteBuffer req = HubClient.formatBuffer(sc, parser.line, parser.opcode.op);
+				//if (parser.opcode == Opcode.FILE_OK) {
+				//	addAuthorizedToSendFile(getNameInKeys(parser.additionalInfo));
+				//}
 				if (parser.opcode == Opcode.ERROR) {
 					System.out.println("Erreur de saisie");
-				} else if (parser.opcode == Opcode.WHISP) {
-					System.out.println("user whispered = " + parser.userWhispered);
-					if (getNameInKeys(parser.userWhispered).isPresent()) {
-						System.out.println(parser.userWhispered + " is present !");
-						userWhispered = parser.userWhispered; // for whispers
+				} else if (parser.opcode == Opcode.WHISP || parser.opcode == Opcode.FILE_REQUEST || parser.opcode == Opcode.FILE_OK || parser.opcode == Opcode.FILE_SEND) {
+					System.out.println("user whispered = " + parser.additionalInfo);
+					if (getNameInKeys(parser.additionalInfo).isPresent()) {
+						System.out.println(parser.additionalInfo + " is present !");
+						userWhispered = parser.additionalInfo; // for whispers
 						mapWhisperMessage.put(userWhispered, req);
 					}
-				} else {
-					// System.out.println(parser.opcode);
-					// System.out.println("Request = " + req);
-					// serverContext.queueMessage(req);
+				}
+				else {
 					queue.add(req);
 				}
-				// processOut();
-				// if (!updateInterestOps()) {
-				// return;
-				// }
-				// System.out.println("WAKING UP");
 				selector.wakeup();
-				// System.out.println("WOKE UP");
-				/*
-				 * if (line.equals("/exit")) { notEnded = false; } else { ParserLine parser =
-				 * ParserLine.parse(line); executeAction(parser.opcode, parser.line); }
-				 */
-
 			}
 		} catch (IOException e) {
 			log.severe("IOException !!");
@@ -489,7 +511,11 @@ public class ClientMatou {
 	}
 	
 	public Optional<Integer> getPendingConnectionToken(String user) {
-		return Optional.of(pendingConnectionToken.get(user));
+		Integer ret = pendingConnectionToken.get(user);
+		if (ret == null) {
+			return Optional.empty();
+		}
+		return Optional.of(ret);
 	}
 
 	public int removePendingConnectionToken(String user) {
@@ -564,7 +590,7 @@ public class ClientMatou {
 		uniqueKey = sc.register(selector, SelectionKey.OP_CONNECT);
 		serverContext = new ContextClient(this, uniqueKey);
 		uniqueKey.attach(serverContext);
-		addConnectedUsers(uniqueKey); // pour que le serveur soit considéré comme connecté.
+		addConnectedUsers(uniqueKey); // pour que le serveur soit considï¿½rï¿½ comme connectï¿½.
 		Set<SelectionKey> selectedKeys = selector.selectedKeys();
 		Thread reader = new Thread(this::beginChat);
 		reader.start();
