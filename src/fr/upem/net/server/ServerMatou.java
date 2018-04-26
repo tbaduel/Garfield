@@ -226,6 +226,7 @@ public class ServerMatou {
 		private void silentlyClose() {
 			try {
 				server.map.remove(sc.getRemoteAddress());
+				server.pendingConnection.remove(key);
 				sc.close();
 			} catch (IOException e) {
 				// ignore exception

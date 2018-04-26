@@ -90,7 +90,7 @@ public class ClientMatou {
 			ProcessStatus ps = messageReader.process();
 			if (ps == ProcessStatus.DONE) {
 				Message msg = messageReader.get();
-				System.out.println("MESSAGE RECUP");
+				System.out.println("MESSAGE RECUP: " + msg.getOp());
 				if (Opcode.valueOfId(msg.getOp()) != Opcode.CHECK_PRIVATE && !client.connectedClients.contains(key)) {
 					silentlyClose();
 					return ;
@@ -177,6 +177,7 @@ public class ClientMatou {
 		 */
 		public void silentlyClose() {
 			try {
+				client.removeConnectedClient(key);
 				sc.close();
 			} catch (IOException e) {
 				// ignore exception
@@ -316,12 +317,20 @@ public class ClientMatou {
 		// System.out.println("mon port est : " + this.port);
 	}
 
+	/**
+	 * Generate a random token and returns it
+	 * @return random token
+	 */
 	public int generateToken() {
 		return rand.nextInt(10000000);
 	}
 	
 	public void addAuthorizedToSendFile(SelectionKey key) {
 		authorizedToSendFile.add(key);
+	}
+	
+	public void removeConnectedClient(SelectionKey key) {
+		connectedClients.remove(key);
 	}
 	
 	public void addAwaitingFileUser(String user, String file) {

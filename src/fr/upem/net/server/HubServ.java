@@ -189,11 +189,16 @@ public class HubServ {
 					bb = createMessage(Opcode.WHISP_REQUEST,(byte)1, bodyToSend);
 					System.out.println("\t\t<=============================>");
 					System.out.println("This user: " + requester + " wants to talk to " + name);
-					Set<String> pendingForUser = server.pendingConnection.merge(name, new HashSet<String>(), (x, y) -> y);
-					if (pendingForUser != null) {
-						pendingForUser.add(requester);
-						server.pendingConnection.put(name, pendingForUser);
+					Set<String> pendingForUser = server.pendingConnection.get(name);
+					if (pendingForUser == null) {
+						pendingForUser = new HashSet<String>();
 					}
+					pendingForUser.add(requester);
+					System.out.println("User list:");
+					System.out.println(pendingForUser);
+					server.pendingConnection.put(name, pendingForUser);
+					System.out.println("add user to server");
+					
 				} catch (IOException e) {
 					return null;
 				}

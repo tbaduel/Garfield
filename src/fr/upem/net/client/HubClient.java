@@ -4,9 +4,13 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
@@ -26,7 +30,9 @@ public class HubClient {
 	public static final Charset UTF8 = Charset.forName("UTF-8");
 	public static final int BUFFER_SIZE = Integer.BYTES * 2;
 	public static final int HEADER_SIZE = Integer.BYTES + Byte.BYTES;
-
+	private String colorText;
+	private String colorUsername;
+	private String colorHour;
 	public final HashMap<Opcode, ClientFunction> clientMap = new HashMap<>();
 
 	public HubClient() {
@@ -40,6 +46,7 @@ public class HubClient {
 		clientMap.put(Opcode.FILE_OK, this::acceptedFileRequest);
 	}
 
+	
 	/**
 	 * No chunks sent, this sends the bytebuffer corresponding to the format of our
 	 * packets
@@ -70,9 +77,10 @@ public class HubClient {
 		Date date = new Date();
 		Calendar calendar = GregorianCalendar.getInstance();
 		calendar.setTime(date);
-		ColorText.start(ColorText.BLUE);
+		ColorText.start(colorHour);
 		System.out.print("[" + calendar.get(Calendar.HOUR_OF_DAY) + ":" + calendar.get(Calendar.MINUTE) + "] ");
-		System.out.println(ColorText.colorize(ColorText.GREEN, message.str1) + ": " + message.str2);
+		System.out.print(ColorText.colorize(colorUsername, message.str1) + ": ");
+		System.out.println(ColorText.colorize(colorText, message.str2));
 	}
 
 	public void receiveIpAddress(Message msg, ClientMatou client, ContextClient ctc) {
@@ -128,6 +136,15 @@ public class HubClient {
 
 	public void executeClient(Opcode op, Message msg, ClientMatou client, ContextClient ctc) {
 		ClientFunction function = clientMap.get(op);
+		if (op.op == Opcode.WHISP.op) {
+			colorText = ColorText.PURPLE;
+			colorUsername = ColorText.PURPLE;
+			colorHour = ColorText.PURPLE;
+		} else {
+			colorText = ColorText.WHITE;
+			colorUsername = ColorText.GREEN;
+			colorHour = ColorText.BLUE;
+		}
 		if (function != null) {
 			function.apply(msg, client, ctc);
 		}
@@ -150,7 +167,18 @@ public class HubClient {
 		System.out.println("Sending file : "+ message.str2 +" to " + message.str1);
 		//System.out.println("Use /f " + message.str + "path/to/your/file to send a file to " + message.str);
 		client.addAuthorizedToSendFile(ctc.getSelectionKey());
-		
+		Path path = Paths.get(message.str2);
+		try (FileChannel fc = FileChannel.open(path, StandardOpenOption.READ)) {
+			int size = (int) fc.size();
+			ByteBuffer buffer = ByteBuffer.allocate(size);
+			while (fc.read(buffer) > 0 && buffer.hasRemaining()) {
+
+			}
+			buffer.flip();
+			System.out.println(UTF8.decode(buffer).toString());
+		} catch (IOException e) {
+			System.err.println("Erreur dans la lecture, envoi annulé.");			
+		}
 		
 	}
 }
