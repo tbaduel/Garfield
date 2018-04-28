@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.Random;
@@ -22,7 +23,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Logger;
-import java.util.stream.Stream;
 
 import fr.upem.net.message.Message;
 import fr.upem.net.other.Opcode;
@@ -312,6 +312,7 @@ public class ClientMatou {
 	private Random rand = new Random();
 	private Map<String, Integer> pendingConnectionToken = new HashMap<>();
 	private Map<String, Set<String>> pendingConnectionFile = new HashMap<>();
+	private Map<String, SelectionKey> usernameContext = new HashMap<>();
 	
 	public ClientMatou(SocketChannel sc, Scanner scan, int port, String address) throws IOException {
 		
@@ -354,6 +355,10 @@ public class ClientMatou {
 		}
 		files.add(file);
 		pendingConnectionFile.put(user, files);
+	}
+	
+	public void addUsernameContext(String user, SelectionKey key) {
+		usernameContext.put(user, key);
 	}
 	
 	public void addAuthorizedToSendFile(Optional<SelectionKey> key) {		
@@ -445,17 +450,18 @@ public class ClientMatou {
 	}
 
 	public Optional<SelectionKey> getNameInKeys(String user) {
-		// for whispers
-		// for (SelectionKey key : connectedClients) {
-		// System.out.println("context: " + key.attachment());
-		// System.out.println("name: " + ((ContextClient)key.attachment()).username);
-		// }
-		try {
-			Stream<SelectionKey> stream = connectedClients.stream().filter(x -> ((ContextClient) x.attachment()).username.equals(user));
-			return stream.findFirst();
-		} catch (NullPointerException e) {
+		SelectionKey key = usernameContext.get(user);
+		return key != null ? Optional.of(key) : Optional.empty();
+		/*System.out.println("There are " + connectedClients.size() + " connected clients");
+		connectedClients.stream().map(x -> {
+			if (((ContextClient) x.attachment()) != null) {
+				if (((ContextClient) x.attachment()).username.equals(user)) {
+					return Optional.of(x);
+				}
+			}
 			return Optional.empty();
-		}
+		});
+		return Optional.empty();*/
 	}
 
 	public boolean isUserAuthorizedToSendFile(Optional<SelectionKey> key) {
@@ -471,7 +477,7 @@ public class ClientMatou {
 	
 	public void beginChat() {
 		try {
-			while (!Thread.interrupted()) {
+			while (!Thread.interrupted() && scan.hasNextLine()) {
 				String line = scan.nextLine();
 				if (closed) {
 					return;
@@ -498,6 +504,8 @@ public class ClientMatou {
 			}
 		} catch (IOException e) {
 			log.severe("IOException !!");
+		} catch (NoSuchElementException e) {
+			log.severe("Scanner closed.");
 		}
 
 	}

@@ -1,7 +1,13 @@
 package fr.upem.net.parser;
 
+import java.net.Inet4Address;
+import java.net.Inet6Address;
 import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
+import java.util.Enumeration;
 import java.util.Optional;
 
 import fr.upem.net.client.ClientMatou;
@@ -31,6 +37,62 @@ public class ParserLine {
 		this.additionalInfo2 = additionalInfo2;
 	}
 	
+	/**
+	 * Takes a formatted ip as a parameter and returns the final ip used to connect.
+	 * @param ip
+	 * @return the formatted ip
+	 */
+	public static String formatIpBack(String ip) {
+		// pas besoin de faire quoi que ce soit en java les ipv4 et ipv6 sont directement supportées.
+		// dans un autre langage il aurait fallu effectuer un traitement.
+		ip = ip.replace("6-", "");
+		ip = ip.replace("4-", "");
+		return ip;
+	}
+	
+	/**
+	 * This method is used to go further than just localhost, that way you're able to get the real ip address
+	 * of your client and send it to a server. It means that the client and the server would work even if you're
+	 * not trying it locally.
+	 * It also adds whether the IP is an IPv6 or IPv4 so that the client is able to use the IP.
+	 * @param ip
+	 * @return formatted ip.
+	 */
+	private static String formatIp(InetAddress ip) {
+		String host = ip.getHostAddress();
+		String ret = "";
+		try {
+			Enumeration<NetworkInterface> e = NetworkInterface.getNetworkInterfaces();
+			while(e.hasMoreElements())
+			{
+			    NetworkInterface n = (NetworkInterface) e.nextElement();
+			    Enumeration<InetAddress> ee = n.getInetAddresses();
+			    while (ee.hasMoreElements())
+			    {
+			        InetAddress i = ee.nextElement();
+			        if (!i.isAnyLocalAddress() && !i.isLinkLocalAddress() && !i.isLoopbackAddress() && !i.isMulticastAddress()) {
+			        	if(i instanceof Inet6Address){
+			                ret = "6-";
+			            } else if (i instanceof Inet4Address) {
+			                ret = "4-";
+			            }
+			        	ret += i.getHostAddress();
+			        	return ret;
+			        }
+			    }
+			}
+		} catch (SocketException e) {
+			System.err.println("Socket Exception!");
+		}
+		return host;
+	}
+	
+	/**
+	 * Takes the line that the client wrote and parse it to determine what action he wanted to do.
+	 * @param rawline
+	 * @param client
+	 * @return a ParserLine object containing additional infos, opcodes and everything needed.
+	 */
 	public static ParserLine parse(String rawline, ClientMatou client) {
 		rawline = EscapeCharacter.escapeJava(rawline); // METHODE APACHE
 		String trimline = rawline.trim();
@@ -82,7 +144,7 @@ public class ParserLine {
 			try {
 				return new ParserLine(opcode,
 						"username: " + words[1] + "\r\n" + "userReq: " + client.username + "\r\n" + "ip: "
-								+ InetAddress.getLocalHost().getHostAddress() + "\r\n" + "port: " + client.getPort() + "\r\n" + "token: "
+								+ formatIp(InetAddress.getLocalHost()) + "\r\n" + "port: " + client.getPort() + "\r\n" + "token: "
 								+ token.get() + "\r\n");
 			} catch (UnknownHostException e) {
 				return new ParserLine(Opcode.ERROR, "");

@@ -15,6 +15,7 @@ import fr.upem.net.message.MessageIp;
 import fr.upem.net.message.MessageOneString;
 import fr.upem.net.message.MessageTwoString;
 import fr.upem.net.other.Opcode;
+import fr.upem.net.parser.ParserLine;
 
 
 public class HubServ {
@@ -213,7 +214,7 @@ public class HubServ {
 		MessageIp message = (MessageIp) msg;
 		String username = message.username;
 		String userReq = message.userReq;
-		String ip = message.ip;
+		String ip = ParserLine.formatIpBack(message.ip);
 		System.out.println("\t\t<=============================>");
 		System.out.println("This user: " + userReq + " accepted " + username);
 		Set<String> validation = server.pendingConnection.get(userReq);

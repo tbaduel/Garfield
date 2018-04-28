@@ -24,6 +24,7 @@ import fr.upem.net.message.MessageStringToken;
 import fr.upem.net.message.MessageTwoString;
 import fr.upem.net.other.ColorText;
 import fr.upem.net.other.Opcode;
+import fr.upem.net.parser.ParserLine;
 
 public class HubClient {
 
@@ -113,12 +114,14 @@ public class HubClient {
 					+ " to client token: " + client.getToken());
 			client.addAwaitingUsers(message.userReq, message.token);
 			SocketChannel newsc = SocketChannel.open();
-
-			newsc.connect(new InetSocketAddress(message.ip, message.port));
+			String ip = ParserLine.formatIpBack(message.ip);
+			System.out.println("IP TO CONNECT TO :" + ip);
+			newsc.connect(new InetSocketAddress(ip, message.port));
 			newsc.configureBlocking(false);
 			SelectionKey ClientKey = newsc.register(client.selector, SelectionKey.OP_CONNECT);
 			ContextClient ct = new ContextClient(client, ClientKey);
 			ct.setUserName(message.userReq);
+			client.addUsernameContext(message.userReq, ClientKey);
 			ClientKey.attach(ct);
 			client.doConnect(ClientKey);
 			client.addConnectedUsers(ClientKey);
@@ -146,6 +149,7 @@ public class HubClient {
 			ctc.setUserName(newUsername);
 		}
 		client.addConnectedUsers(ctc.getSelectionKey());
+		client.addUsernameContext(newUsername, ctc.getSelectionKey());
 		client.removePendingConnectionToken(message.username);
 
 	}
