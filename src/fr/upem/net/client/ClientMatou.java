@@ -138,12 +138,25 @@ public class ClientMatou {
 		 *
 		 */
 		private void processOut() {
-			while (bbout.remaining() >= Integer.BYTES && queue.size() > 0) {
+			
+			while (bbout.remaining() > 0 && queue.size() > 0) {
 				// System.out.println("remaining bbout " + bbout.remaining());
-				ByteBuffer a = queue.poll();
+				ByteBuffer a = queue.peek();
 				// System.out.println("add : " + a);
 				a.flip();
-				bbout.put(a);
+				System.out.println("To send = " + a.remaining());
+				System.out.println("bbout = " + bbout.remaining());
+				if (bbout.remaining() >= a.remaining()) {
+					System.out.println("Ya la place");
+					bbout.put(a);
+					queue.poll();
+					
+				}
+				else {
+					System.out.println("Je remets");
+					a.position(a.limit());
+					return;
+				}
 			}
 		}
 
@@ -225,7 +238,8 @@ public class ClientMatou {
 			sc.write(bbout);
 			System.out.println("WROTE TO "  + sc.getRemoteAddress());
 			bbout.compact();
-			// System.out.println("Il reste a envoyer " + bbout);
+			System.out.println("Il reste a envoyer " + bbout);
+			processOut();
 			updateInterestOps();
 		}
 

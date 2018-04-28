@@ -1,7 +1,6 @@
 package fr.upem.net.client;
 
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -18,6 +17,7 @@ import java.util.HashMap;
 
 import fr.upem.net.client.ClientMatou.ContextClient;
 import fr.upem.net.message.Message;
+import fr.upem.net.message.MessageFile;
 import fr.upem.net.message.MessageIp;
 import fr.upem.net.message.MessageOneString;
 import fr.upem.net.message.MessageStringToken;
@@ -44,9 +44,9 @@ public class HubClient {
 		clientMap.put(Opcode.WHISP_ERR, this::errorIpAddress);
 		clientMap.put(Opcode.FILE_REQUEST, this::sendFileRequest);
 		clientMap.put(Opcode.FILE_OK, this::acceptedFileRequest);
+		clientMap.put(Opcode.FILE_SEND, this::receiveFile);
 	}
 
-	
 	/**
 	 * No chunks sent, this sends the bytebuffer corresponding to the format of our
 	 * packets
@@ -71,6 +71,29 @@ public class HubClient {
 		return req;
 	}
 
+	/**
+	 * Create a ByteBuffer for a File transfers
+	 * 
+	 * @param bodyString
+	 * @param id
+	 * @param endFlag
+	 * @return
+	 * @throws IOException
+	 */
+	public static ByteBuffer formatBufferFile(ByteBuffer bodyfile, int id, boolean endFlag) throws IOException {
+		byte endMsg = (byte) (endFlag == true ? 1 : 0);
+		ByteBuffer header = ByteBuffer.allocate(HEADER_SIZE);
+		header.put(endMsg);
+		header.putInt(bodyfile.remaining());
+		header.flip();
+		ByteBuffer req = ByteBuffer.allocate(header.remaining() + bodyfile.remaining() + BUFFER_SIZE);
+		req.putInt(id);
+		req.putInt(header.remaining());
+		req.put(header);
+		req.put(bodyfile);
+		return req;
+	}
+
 	public void messageBroadcast(Message msg, ClientMatou client, ContextClient ctc) {
 		System.out.println("My token is: " + client.getToken());
 		MessageTwoString message = (MessageTwoString) msg;
@@ -90,7 +113,7 @@ public class HubClient {
 					+ " to client token: " + client.getToken());
 			client.addAwaitingUsers(message.userReq, message.token);
 			SocketChannel newsc = SocketChannel.open();
-			
+
 			newsc.connect(new InetSocketAddress(message.ip, message.port));
 			newsc.configureBlocking(false);
 			SelectionKey ClientKey = newsc.register(client.selector, SelectionKey.OP_CONNECT);
@@ -101,7 +124,9 @@ public class HubClient {
 			client.addConnectedUsers(ClientKey);
 			System.out.println("SETTING USERNAME: " + message.userReq);
 			System.out.println("QUEUING MESSAGE FOR PRIVATE");
-			ct.queueMessage(formatBuffer(newsc, "username: " + client.username + "\r\ntoken: " + client.getPendingConnectionToken(message.userReq).orElse(-1).toString(),
+			ct.queueMessage(formatBuffer(newsc,
+					"username: " + client.username + "\r\ntoken: "
+							+ client.getPendingConnectionToken(message.userReq).orElse(-1).toString(),
 					Opcode.CHECK_PRIVATE.op));
 		} catch (IOException e) {
 			System.err.println("IOException!!");
@@ -115,7 +140,7 @@ public class HubClient {
 		if (client.getPendingConnectionToken(message.username).orElse(-1) != token) {
 			ctc.silentlyClose();
 		}
-		
+
 		String newUsername = message.username;
 		if (newUsername != null) {
 			ctc.setUserName(newUsername);
@@ -131,7 +156,7 @@ public class HubClient {
 				+ " wants to communicate with you, to authorize requests, type /y " + message.str);
 		client.addAwaitingUsers(message.str);
 		// System.out.println("add username : " + bp.getField("username"));
-		
+
 	}
 
 	public void executeClient(Opcode op, Message msg, ClientMatou client, ContextClient ctc) {
@@ -157,28 +182,71 @@ public class HubClient {
 
 	public void sendFileRequest(Message msg, ClientMatou client, ContextClient ctc) {
 		MessageTwoString message = (MessageTwoString) msg;
-		System.out.println(ColorText.colorize(ColorText.GREEN, message.str1)
-				+ " wants to send you a file named: " + message.str2 + ", to authorize the file, type /o " + message.str1 + " " + message.str2);		
+		System.out.println(ColorText.colorize(ColorText.GREEN, message.str1) + " wants to send you a file named: "
+				+ message.str2 + ", to authorize the file, type /o " + message.str1 + " " + message.str2);
 		client.addAwaitingFileUser(message.str2, message.str1);
 	}
-	
+
 	public void acceptedFileRequest(Message msg, ClientMatou client, ContextClient ctc) {
 		MessageTwoString message = (MessageTwoString) msg;
-		System.out.println("Sending file : "+ message.str2 +" to " + message.str1);
-		//System.out.println("Use /f " + message.str + "path/to/your/file to send a file to " + message.str);
+		System.out.println("Sending file : " + message.str2 + " to " + message.str1);
+		// System.out.println("Use /f " + message.str + "path/to/your/file to send a
+		// file to " + message.str);
 		client.addAuthorizedToSendFile(ctc.getSelectionKey());
 		Path path = Paths.get(message.str2);
+		System.out.println(path.toString());
 		try (FileChannel fc = FileChannel.open(path, StandardOpenOption.READ)) {
 			int size = (int) fc.size();
-			ByteBuffer buffer = ByteBuffer.allocate(size);
-			while (fc.read(buffer) > 0 && buffer.hasRemaining()) {
+			int readed;
+			ByteBuffer buffer = ByteBuffer.allocate(499);
+			// while (fc.read(buffer) > 0 && buffer.hasRemaining()) {
+			while (fc.position() < size) {
+				System.out.println("pos = " + fc.position() + ", size = " + size);
+				if (buffer.remaining() < size - fc.position()) {
+					readed = fc.read(buffer);
+					if (readed != -1) {
+						buffer.flip();
+						ctc.queueMessage(formatBufferFile(buffer.duplicate(),Opcode.FILE_SEND.op , false));
+					}
+					buffer.clear();
 
+				} else {
+					readed = fc.read(buffer);
+					if (readed != -1) {
+						buffer.flip();
+						ctc.queueMessage(formatBufferFile(buffer.duplicate(), Opcode.FILE_SEND.op, true));
+					}
+					buffer.clear();
+
+				}
 			}
-			buffer.flip();
-			System.out.println(UTF8.decode(buffer).toString());
+			//buffer.flip();
+			//System.out.println(UTF8.decode(buffer).toString());
 		} catch (IOException e) {
-			System.err.println("Erreur dans la lecture, envoi annulé.");			
+			System.out.println(e.toString());
+			System.err.println("Erreur dans la lecture, envoi annulé.");
+		}
+
+	}
+	
+	public void receiveFile(Message msg, ClientMatou client, ContextClient ctc) {
+		System.out.println("Receiving file ...");
+		try(FileChannel fc = FileChannel.open(Paths.get("./file"), 
+				StandardOpenOption.CREATE,
+				StandardOpenOption.WRITE,
+				StandardOpenOption.APPEND)){
+			MessageFile message = (MessageFile)msg;
+			fc.write(message.buffer);
+			if (message.endFlag == (byte)1) {
+				System.out.println("File received !");
+			}
+			
+				
+			} catch (IOException e) {
+				System.out.println("Erreur pendant la reception");
+			}
+			
 		}
 		
-	}
+	
 }
