@@ -43,7 +43,7 @@ public class ParserLine {
 	 * @return the formatted ip
 	 */
 	public static String formatIpBack(String ip) {
-		// pas besoin de faire quoi que ce soit en java les ipv4 et ipv6 sont directement supportées.
+		// pas besoin de faire quoi que ce soit en java les ipv4 et ipv6 sont directement supportï¿½es.
 		// dans un autre langage il aurait fallu effectuer un traitement.
 		ip = ip.replace("6-", "");
 		ip = ip.replace("4-", "");
@@ -131,7 +131,15 @@ public class ParserLine {
 			if (words.length != 3) {
 				return new ParserLine(Opcode.ERROR, "");
 			}
-			return new ParserLine(opcode, "username: " + client.username + "\r\n" + "file: " + words[2], words[1]);
+			System.out.println(words[2]);
+			Optional<Integer> fileId = client.getIdFromFileName(words[2]);
+			if (fileId.isPresent()) {
+				return new ParserLine(opcode, "username: " + client.username + "\r\n" + "file: " + words[2] + "\r\n" + "fileId: " + fileId.get() + "\r\n", words[1]);
+			}
+			else {
+				System.out.println("File not accepted");
+				return new ParserLine(Opcode.ERROR, "");
+			}
 		} else if (line.equals("/y")) {
 			opcode = Opcode.WHISP_OK;
 			words = rawline.split("\\s+");

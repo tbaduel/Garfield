@@ -10,6 +10,7 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -25,6 +26,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Logger;
 
 import fr.upem.net.message.Message;
+import fr.upem.net.other.FileInfo;
 import fr.upem.net.other.Opcode;
 import fr.upem.net.parser.ParserLine;
 import fr.upem.net.reader.MessageReader;
@@ -84,7 +86,33 @@ public class ClientMatou {
 		 * @throws IOException
 		 *
 		 */
-
+		private void processIn() throws IOException {
+			bbin.flip();
+			ProcessStatus ps = messageReader.process();
+			while (ps == ProcessStatus.DONE ) {
+				Message msg = messageReader.get();
+				System.out.println("MESSAGE RECUP: " + msg.getOp());
+				if (Opcode.valueOfId(msg.getOp()) != Opcode.CHECK_PRIVATE && !client.connectedClients.contains(key)) {
+					silentlyClose();
+					return ;
+				}
+				client.hubClient.executeClient(Opcode.valueOfId(msg.getOp()), msg, client, this);
+				messageReader.reset();
+				
+				ps = ProcessStatus.REFILL;
+				ps = messageReader.process();
+				System.out.println("new ps = " + ps);
+			}
+			bbin.compact();
+			/*else {
+				 System.out.println("not done");
+			}
+			*/
+		}
+		
+		
+		
+		/*
 		private void processIn() throws IOException {
 			bbin.flip();
 			ProcessStatus ps = messageReader.process();
@@ -100,9 +128,10 @@ public class ClientMatou {
 				bbin.compact();
 				
 			} else {
-				// System.out.println("not done");
+				 System.out.println("not done");
 			}
 		}
+		*/
 
 		/**
 		 * Process the message
@@ -214,6 +243,7 @@ public class ClientMatou {
 			}
 			// System.out.println("--------------\n jai lu " + read + "bytes");
 			processIn();
+			processOut();
 			updateInterestOps();
 		}
 
@@ -311,8 +341,10 @@ public class ClientMatou {
 	public String usernameWhisper;
 	private Random rand = new Random();
 	private Map<String, Integer> pendingConnectionToken = new HashMap<>();
-	private Map<String, Set<String>> pendingConnectionFile = new HashMap<>();
+	private Map<String, Set<FileInfo>> pendingConnectionFile = new HashMap<>();
 	private Map<String, SelectionKey> usernameContext = new HashMap<>();
+	private Map<Integer, String> idFileMap = new HashMap<>();
+	private Map<String, ContextClient> fileContextMap = new HashMap<>();
 	
 	public ClientMatou(SocketChannel sc, Scanner scan, int port, String address) throws IOException {
 		
@@ -344,17 +376,21 @@ public class ClientMatou {
 		authorizedToSendFile.add(key);
 	}
 	
+	
 	public void removeConnectedClient(SelectionKey key) {
 		connectedClients.remove(key);
 	}
 	
-	public void addAwaitingFileUser(String user, String file) {
-		Set<String> files = pendingConnectionFile.get(user);
+	public void addAwaitingFileUser(String user, String file, int fileId) {
+		Set<FileInfo> files = pendingConnectionFile.get(user);
 		if (files == null) {
-			files = new HashSet<String>();
+			files = new HashSet<FileInfo>();
 		}
-		files.add(file);
+		FileInfo fi = new FileInfo(file, fileId);
+		files.add(fi);
 		pendingConnectionFile.put(user, files);
+		System.out.println("Add :" + fileId + " = " + file);
+		idFileMap.put(fileId, file);
 	}
 	
 	public void addUsernameContext(String user, SelectionKey key) {
@@ -366,6 +402,25 @@ public class ClientMatou {
 			return ;
 		}
 		authorizedToSendFile.add(key.get());
+	}
+	
+	/**
+	 * Get the String name of a file from id
+	 * @param fileId
+	 * @return
+	 */
+	public String getFileFromId(int fileId) {
+		return idFileMap.get(fileId);
+	}
+	
+	public Optional<Integer> getIdFromFileName(String filename) {
+		Collection<Integer> icollection = idFileMap.keySet();
+		for (Integer i : icollection) {
+			if (idFileMap.get(i).equals(filename)) {
+				return Optional.of(i);
+			}
+		}
+		return Optional.empty();
 	}
 	
 	public void setUsername(String username) {
@@ -559,7 +614,7 @@ public class ClientMatou {
 
 	/*
 	 * private void doWrite() throws IOException { // dowrite ne s'executera pas
-	 * tant que l'utilisateur n'aura pas ecrit sur // l'entrée standard // (en gros
+	 * tant que l'utilisateur n'aura pas ecrit sur // l'entrÃ©e standard // (en gros
 	 * tant que bbout ne sera pas rempli par l'autre thread.) bbout.flip();
 	 * bbout.position(0); sc.write(bbout); bbout.compact(); updateInterestOps();
 	 * 
@@ -585,7 +640,7 @@ public class ClientMatou {
 		SocketChannel sc = ssc.accept();
 		if (sc == null)
 			return; // the selector gave a bad hint
-		System.out.println("Quelqu'un s'est connect�!");
+		System.out.println("Quelqu'un s'est connectï¿½!");
 		sc.configureBlocking(false);
 		SelectionKey ClientKey = sc.register(selector, SelectionKey.OP_READ);
 		ContextClient ct = new ContextClient(this, ClientKey);
@@ -621,7 +676,7 @@ public class ClientMatou {
 		uniqueKey = sc.register(selector, SelectionKey.OP_CONNECT);
 		serverContext = new ContextClient(this, uniqueKey);
 		uniqueKey.attach(serverContext);
-		addConnectedUsers(uniqueKey); // pour que le serveur soit consid�r� comme connect�.
+		addConnectedUsers(uniqueKey); // pour que le serveur soit considï¿½rï¿½ comme connectï¿½.
 		Set<SelectionKey> selectedKeys = selector.selectedKeys();
 		Thread reader = new Thread(this::beginChat);
 		reader.start();

@@ -10,13 +10,14 @@ import fr.upem.net.message.MessageOneString;
 import fr.upem.net.message.MessageOpcode;
 import fr.upem.net.message.MessageStringToken;
 import fr.upem.net.message.MessageTwoString;
+import fr.upem.net.message.MessageTwoStringOneInt;
 import fr.upem.net.other.Opcode;
 import fr.upem.net.parser.BodyParser;
 
 public class MessageReader implements Reader {
 
 	private enum State {
-		DONE, WAITING_OP, WAITING_HEADER_SIZE, WAITING_END_FLAG, WAITING_BODY, ERROR
+		DONE, WAITING_OP, WAITING_HEADER_SIZE, WAITING_END_FLAG, WAITING_BODY, WAITING_FILEID, ERROR
 	};
 
 	private final ByteBuffer bb;
@@ -26,6 +27,7 @@ public class MessageReader implements Reader {
 	private byte endFlag;
 	private String body;
 	private ByteBuffer bodyBuffer = null;
+	private int fileId = -1;
 
 	public MessageReader(ByteBuffer bbin) {
 		bb = bbin;
@@ -49,6 +51,7 @@ public class MessageReader implements Reader {
 					iRead.reset();
 					state = State.WAITING_HEADER_SIZE;
 					// System.out.println("OP READ");
+					System.out.println("op  = " + op);
 				}
 			}
 			// System.out.println("Remaining : "+ bb.remaining());
@@ -67,6 +70,19 @@ public class MessageReader implements Reader {
 				if (ps == ProcessStatus.DONE) {
 					endFlag = (byte) bRead.get();
 					bRead.reset();
+					if (op == Opcode.FILE_SEND.op && headerSize == 9) {
+						state = State.WAITING_FILEID;
+					} else {
+						state = State.WAITING_BODY;
+					}
+					// System.out.println("endFlag = " + endFlag );
+				}
+			}
+			if (state == State.WAITING_FILEID) {
+				ps = iRead.process();
+				if (ps == ProcessStatus.DONE) {
+					fileId = (Integer) iRead.get();
+					iRead.reset();
 					state = State.WAITING_BODY;
 				}
 			}
@@ -118,12 +134,13 @@ public class MessageReader implements Reader {
 		int token;
 		String ip;
 		BodyParser bp = null;
+		//int fileId;
 		if (state != State.DONE)
 			throw new IllegalStateException();
 		Opcode opcode = Opcode.valueOfId(op);
 		if (opcode != Opcode.FILE_SEND)
-			 bp = BodyParser.readBody(body);
-		
+			bp = BodyParser.readBody(body);
+
 		switch (opcode) {
 		case LOGIN:
 			username = bp.getField("username");
@@ -160,7 +177,8 @@ public class MessageReader implements Reader {
 		case FILE_OK:
 			username = bp.getField("username");
 			data = bp.getField("file");
-			return new MessageTwoString(op, endFlag, username, data);
+			fileId = Integer.parseInt(bp.getField("fileId"));
+			return new MessageTwoStringOneInt(op, endFlag, username, data, fileId);
 
 		case IPRESPONSE:
 			username = bp.getField("username");
@@ -197,7 +215,7 @@ public class MessageReader implements Reader {
 			return new MessageStringToken(op, endFlag, username, token);
 
 		case FILE_SEND:
-			return new MessageFile(op, endFlag, bodyBuffer);
+			return new MessageFile(op, endFlag, fileId, bodyBuffer);
 
 		default:
 			return new MessageOpcode(op, endFlag);
@@ -206,7 +224,7 @@ public class MessageReader implements Reader {
 
 	@Override
 	public void reset() {
-		// TODO Auto-generated method stub
+
 		state = State.WAITING_OP;
 	}
 
