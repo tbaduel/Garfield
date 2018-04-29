@@ -80,7 +80,7 @@ public class HubClient {
 	 * @param bodyString
 	 * @param id
 	 * @param endFlag
-	 * @return
+	 * @return a ByteBuffer of a message to send
 	 * @throws IOException
 	 */
 	public static ByteBuffer formatBufferFile(ByteBuffer bodyfile, int id, int fileId, boolean endFlag) throws IOException {
