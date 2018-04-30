@@ -14,7 +14,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Queue;
 import java.util.Scanner;
 import java.util.Set;
@@ -41,7 +40,7 @@ public class ServerMatou {
 		final private ByteBuffer bbout = ByteBuffer.allocate(BUFFER_SIZE);
 		final private Queue<ByteBuffer> queue = new LinkedList<>();
 		final private ServerMatou server;
-		final private ClientMatou client;
+	
 		private boolean closed = false;
 		private Opcode opcodeAction;
 		public String username; // added for whisper
@@ -64,18 +63,15 @@ public class ServerMatou {
 			this.key = key;
 			this.sc = (SocketChannel) key.channel();
 			this.server = server;
-			this.client = null;
-		}
-		
-		public Context(ClientMatou client, SelectionKey key) {
-			//added for whisper
-			this.key = key;
-			this.sc = (SocketChannel) key.channel();
-			this.server = null;
-			this.client = client;
+			
 		}
 		
 		
+		
+		/**
+		 * Set the username of a client
+		 * @param username
+		 */
 		public void setUserName(String username) {
 			//added for whisper
 			this.username = username;
@@ -129,12 +125,7 @@ public class ServerMatou {
 						
 					}
 					else if (msgOpcode == Opcode.WHISP_OK.op){
-						/*
-						int port = Integer.parseInt(msg.getBp().getField("port"));
-						String ip = msg.getBp().getField("ip");
-						*/
 						MessageIp message = (MessageIp) msg;
-						//System.out.println("jenvoie la demande � :" + msg.getBp().getField("username"));
 						Context contextDest = server.getContextFromIP(server.getKeyFromMap(message.username));
 						contextDest.queueMessage(toSend);
 					}
@@ -347,6 +338,11 @@ public class ServerMatou {
 		
 	}
 	
+	/**
+	 * Get address corresponding to a username
+	 * @param username
+	 * @return the SocketAddress of client's username
+	 */
 	private SocketAddress getKeyFromMap( String username) {
 		Collection<SocketAddress> keys = map.keySet();
 		for (SocketAddress address : keys) {
@@ -356,6 +352,11 @@ public class ServerMatou {
 		}
 		return null;
 	}
+	
+	/**
+	 * Start the server
+	 * @throws IOException
+	 */
 	public void launch() throws IOException {
 		serverSocketChannel.configureBlocking(false);
 		serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
@@ -371,7 +372,10 @@ public class ServerMatou {
 			selectedKeys.clear();
 		}
 	}
-
+	
+	/**
+	 * Execute a command
+	 */
 	private void executeCommand() {
 		while (consoleQueue.size() > 0) {
 			switch (consoleQueue.poll()) {
@@ -395,7 +399,11 @@ public class ServerMatou {
 			}
 		}
 	}
-
+	
+	/**
+	 * Get the number of active client
+	 * @return the number of active clients
+	 */
 	public int infoActive() {
 		int cpt = 0;
 		for (SelectionKey key : selector.keys()) {
@@ -406,8 +414,11 @@ public class ServerMatou {
 		}
 		return cpt;
 	}
-
-	public void shutdownNow() {
+	
+	/**
+	 * Shutdown the server, disconnect every user
+	 */
+	private void shutdownNow() {
 		//TODO
 		boolean done = false;
 		while (!done) {
@@ -425,8 +436,11 @@ public class ServerMatou {
 			}
 		}
 	}
-
-	public void shutdown() {
+	
+	/**
+	 * Close the ServerSocketChannel
+	 */
+	private void shutdown() {
 		// TODO
 		logger.info("Shutdown requested ...");
 		for (SelectionKey key : selector.keys()) {
@@ -577,7 +591,11 @@ public class ServerMatou {
 			list.add("WRITE");
 		return String.join(" and ", list);
 	}
-
+	
+	/**
+	 * Need to be run in a thread. Get the command from System.In and execute them.
+	 * @param server
+	 */
 	private static void consoleRunner(ServerMatou server) {
 		String command = "";
 		try (Scanner scan = new Scanner(System.in)) {

@@ -98,7 +98,12 @@ public class HubClient {
 		return req;
 	}
 	
-	
+	/**
+	 * Display a broadcasted message
+	 * @param msg
+	 * @param client
+	 * @param ctc
+	 */
 	private void messageBroadcast(Message msg, ClientMatou client, ContextClient ctc) {
 		System.out.println("My token is: " + client.getToken());
 		MessageTwoString message = (MessageTwoString) msg;
@@ -110,7 +115,13 @@ public class HubClient {
 		System.out.print(ColorText.colorize(colorUsername, message.str1) + ": ");
 		System.out.println(ColorText.colorize(colorText, message.str2));
 	}
-
+	
+	/**
+	 * 
+	 * @param msg
+	 * @param client
+	 * @param ctc
+	 */
 	private void receiveIpAddress(Message msg, ClientMatou client, ContextClient ctc) {
 		try {
 			MessageIp message = (MessageIp) msg;
@@ -122,19 +133,36 @@ public class HubClient {
 			System.out.println("IP TO CONNECT TO :" + ip);
 			newsc.connect(new InetSocketAddress(ip, message.port));
 			newsc.configureBlocking(false);
-			SelectionKey ClientKey = newsc.register(client.selector, SelectionKey.OP_CONNECT);
-			ContextClient ct = new ContextClient(client, ClientKey);
+			SelectionKey clientKey = newsc.register(client.selector, SelectionKey.OP_CONNECT);
+			ContextClient ct = new ContextClient(client, clientKey);
 			ct.setUserName(message.userReq);
-			client.addUsernameContext(message.userReq, ClientKey);
-			ClientKey.attach(ct);
-			client.doConnect(ClientKey);
-			client.addConnectedUsers(ClientKey);
+			client.addUsernameContext(message.userReq, clientKey);
+			clientKey.attach(ct);
+			client.doConnect(clientKey);
+			client.addConnectedUsers(clientKey);
 			System.out.println("SETTING USERNAME: " + message.userReq);
 			System.out.println("QUEUING MESSAGE FOR PRIVATE");
 			ct.queueMessage(formatBuffer(newsc,
 					"username: " + client.username + "\r\ntoken: "
 							+ client.getPendingConnectionToken(message.userReq).orElse(-1).toString(),
 					Opcode.CHECK_PRIVATE.op));
+			
+			//TODO Faire la deuxieme socketChannel
+			SocketChannel scFile = SocketChannel.open();
+			scFile.connect(new InetSocketAddress(ip,message.port));
+			scFile.configureBlocking(false);
+			SelectionKey clientFileKey = scFile.register(client.selector, SelectionKey.OP_CONNECT);
+			ContextClient ctFile = new ContextClient(client, clientFileKey);
+			clientFileKey.attach(ctFile);
+			client.doConnect(clientFileKey);
+			
+			
+			//TODO add to Filemap
+			
+			
+			
+			
+			
 		} catch (IOException e) {
 			System.err.println("IOException!!");
 		}
@@ -213,7 +241,7 @@ public class HubClient {
 			int size = (int) fc.size();
 			int fileId = message.integer;
 			int readed;
-			ByteBuffer buffer = ByteBuffer.allocate(499);
+			ByteBuffer buffer = ByteBuffer.allocate(494);
 			// while (fc.read(buffer) > 0 && buffer.hasRemaining()) {
 			while (fc.position() < size) {
 				System.out.println("pos = " + fc.position() + ", size = " + size);
@@ -258,6 +286,8 @@ public class HubClient {
 			fc.write(message.buffer);
 			if (message.endFlag == (byte)1) {
 				System.out.println("File received !");
+				//TODO
+				//client.removeFile(message.fileId);
 			}
 			
 				

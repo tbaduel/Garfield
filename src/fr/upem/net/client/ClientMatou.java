@@ -238,7 +238,7 @@ public class ClientMatou {
 		private void doRead() throws IOException {
 			int read;
 			if ((read = sc.read(bbin)) == -1) {
-				client.log.info("closing");
+				ClientMatou.log.info("closing");
 				closed = true;
 			}
 			// System.out.println("--------------\n jai lu " + read + "bytes");
@@ -321,8 +321,8 @@ public class ClientMatou {
 	public final Selector selector;
 	private final Set<SelectionKey> selectedKeys;
 	private SelectionKey uniqueKey;
-	final private ByteBuffer bbin = ByteBuffer.allocateDirect(BUFFER_SIZE);
-	final private MessageReader messageReader = new MessageReader(bbin);
+	//final private ByteBuffer bbin = ByteBuffer.allocateDirect(BUFFER_SIZE);
+	//final private MessageReader messageReader = new MessageReader(bbin);
 	private final HubClient hubClient = new HubClient();
 	final private Queue<ByteBuffer> queue = new LinkedBlockingQueue<>();
 	final private Queue<ByteBuffer> queueFile = new LinkedBlockingQueue<>();
@@ -423,22 +423,57 @@ public class ClientMatou {
 		return Optional.empty();
 	}
 	
+	/**
+	 * Remove the file from the file pool
+	 * @param fileId
+	 */
+	public void removeFile(int fileId) {
+		idFileMap.remove(fileId);
+		
+	}
+	
+	/**
+	 * Set the username of the client 
+	 * @param username
+	 */
 	public void setUsername(String username) {
 		this.username = username;
 	}
-
+	
+	/**
+	 * Get token of the client
+	 * @return the token (int)
+	 */
 	public int getToken() {
 		return token;
 	}
-
+	
+	/**
+	 * Get address of client
+	 * @return
+	 */
 	public String getAddress() {
 		return address;
 	}
-
+	
+	/**
+	 * Get port of the current client connection
+	 * @return
+	 */
 	public int getPort() {
 		return port;
 	}
-
+	
+	/**
+	 * Read all the byte of the current ByteBuffer on the SocketChannel. It 
+	 * read bb.remaining() bytes.
+	 * The ByteBuffer need to be in write mode.
+	 * If the read return -1 (socket closed), return false.
+	 * @param sc
+	 * @param bb
+	 * @return true if all bytes are read, false otherwise
+	 * @throws IOException
+	 */
 	static boolean readFully(SocketChannel sc, ByteBuffer bb) throws IOException {
 		while (sc.read(bb) != -1) {
 			if (!bb.hasRemaining()) {
@@ -488,7 +523,15 @@ public class ClientMatou {
 	public void sendServer(ByteBuffer send) throws IOException {
 		sc.write(send);
 	}
-
+	
+	/**
+	 * Try to connect to the main server.
+	 * @param login
+	 * @param password
+	 * @param newUser
+	 * @return true if connected to the server, false otherwise 
+	 * @throws IOException
+	 */
 	public boolean login(String login, String password, boolean newUser) throws IOException {
 		String data = "username: " + login + "\r\npassword: " + password + "\r\n";
 		ByteBuffer send = null;
@@ -504,6 +547,11 @@ public class ClientMatou {
 
 	}
 
+	/**
+	 * Get name in Keys
+	 * @param user
+	 * @return SelectionKey corresponding to the user
+	 */
 	public Optional<SelectionKey> getNameInKeys(String user) {
 		SelectionKey key = usernameContext.get(user);
 		return key != null ? Optional.of(key) : Optional.empty();
@@ -518,7 +566,13 @@ public class ClientMatou {
 		});
 		return Optional.empty();*/
 	}
-
+	
+	/**
+	 * Currently not used
+	 * @param key
+	 * @return
+	 */
+	//TODO
 	public boolean isUserAuthorizedToSendFile(Optional<SelectionKey> key) {
 		if (!key.isPresent()) {
 			return false;
@@ -526,6 +580,12 @@ public class ClientMatou {
 		return authorizedToSendFile.contains(key.get());
 	}
 
+	/**
+	 * Currently not used
+	 * @param req
+	 * @param file
+	 */
+	//TODO
 	public void sendFile(ByteBuffer req, String file) {
 		System.out.println("Sending file !");
 	}
@@ -614,7 +674,7 @@ public class ClientMatou {
 
 	/*
 	 * private void doWrite() throws IOException { // dowrite ne s'executera pas
-	 * tant que l'utilisateur n'aura pas ecrit sur // l'entrÃ©e standard // (en gros
+	 * tant que l'utilisateur n'aura pas ecrit sur // l'entrée standard // (en gros
 	 * tant que bbout ne sera pas rempli par l'autre thread.) bbout.flip();
 	 * bbout.position(0); sc.write(bbout); bbout.compact(); updateInterestOps();
 	 * 
@@ -640,7 +700,7 @@ public class ClientMatou {
 		SocketChannel sc = ssc.accept();
 		if (sc == null)
 			return; // the selector gave a bad hint
-		System.out.println("Quelqu'un s'est connectï¿½!");
+		System.out.println("Quelqu'un s'est connecté!");
 		sc.configureBlocking(false);
 		SelectionKey ClientKey = sc.register(selector, SelectionKey.OP_READ);
 		ContextClient ct = new ContextClient(this, ClientKey);
@@ -676,7 +736,7 @@ public class ClientMatou {
 		uniqueKey = sc.register(selector, SelectionKey.OP_CONNECT);
 		serverContext = new ContextClient(this, uniqueKey);
 		uniqueKey.attach(serverContext);
-		addConnectedUsers(uniqueKey); // pour que le serveur soit considï¿½rï¿½ comme connectï¿½.
+		addConnectedUsers(uniqueKey); // pour que le serveur soit considéré comme connecté.
 		Set<SelectionKey> selectedKeys = selector.selectedKeys();
 		Thread reader = new Thread(this::beginChat);
 		reader.start();
