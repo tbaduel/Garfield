@@ -48,6 +48,7 @@ public class HubClient {
 		clientMap.put(Opcode.FILE_REQUEST, this::sendFileRequest);
 		clientMap.put(Opcode.FILE_OK, this::acceptedFileRequest);
 		clientMap.put(Opcode.FILE_SEND, this::receiveFile);
+		clientMap.put(Opcode.CHECK_FILE, this::checkfile);
 	}
 
 	/**
@@ -117,7 +118,7 @@ public class HubClient {
 	}
 	
 	/**
-	 * 
+	 * Received ip address Message type
 	 * @param msg
 	 * @param client
 	 * @param ctc
@@ -133,6 +134,8 @@ public class HubClient {
 			System.out.println("IP TO CONNECT TO :" + ip);
 			newsc.connect(new InetSocketAddress(ip, message.port));
 			newsc.configureBlocking(false);
+			
+			// First socket channel : msgSocketChannel
 			SelectionKey clientKey = newsc.register(client.selector, SelectionKey.OP_CONNECT);
 			ContextClient ct = new ContextClient(client, clientKey);
 			ct.setUserName(message.userReq);
@@ -148,6 +151,7 @@ public class HubClient {
 					Opcode.CHECK_PRIVATE.op));
 			
 			//TODO Faire la deuxieme socketChannel
+			
 			SocketChannel scFile = SocketChannel.open();
 			scFile.connect(new InetSocketAddress(ip,message.port));
 			scFile.configureBlocking(false);
@@ -155,7 +159,13 @@ public class HubClient {
 			ContextClient ctFile = new ContextClient(client, clientFileKey);
 			clientFileKey.attach(ctFile);
 			client.doConnect(clientFileKey);
-			
+			client.addConnectedUsers(clientFileKey);
+			ctFile.queueMessage(formatBuffer(newsc,
+					"username: " + client.username + "\r\ntoken: "
+							+ client.getPendingConnectionToken(message.userReq).orElse(-1).toString(),
+					Opcode.CHECK_FILE.op));
+			System.out.println("Adding Filecontext : " + message.userReq);
+			client.addFileContext(message.userReq, ctFile);
 			
 			//TODO add to Filemap
 			
@@ -167,7 +177,13 @@ public class HubClient {
 			System.err.println("IOException!!");
 		}
 	}
-
+	
+	/**
+	 * Check connection for message socket, and add to client's connected users
+	 * @param msg
+	 * @param client
+	 * @param ctc
+	 */
 	private void checkPrivate(Message msg, ClientMatou client, ContextClient ctc) {
 		MessageStringToken message = (MessageStringToken) msg;
 		int token = message.token;
@@ -183,10 +199,41 @@ public class HubClient {
 		System.out.println("Message.username = " + message.username);
 		client.addConnectedUsers(ctc.getSelectionKey());
 		client.addUsernameContext(newUsername, ctc.getSelectionKey());
-		client.removePendingConnectionToken(message.username);
+		//client.removePendingConnectionToken(message.username);
 
 	}
+	
+	/**
+	 * Check connection for file socket transfer, and add to client's connected users
+	 * @param msg
+	 * @param client
+	 * @param ctc
+	 */
+	private void checkfile(Message msg, ClientMatou client, ContextClient ctc) {
+		MessageStringToken message = (MessageStringToken)msg;
+		int token = message.token;
+		System.out.println("Checking file");
+		if (client.getPendingConnectionToken(message.username).orElse(-1) != token) {
+			System.out.println("Wrong connection, closing ...");
+			ctc.silentlyClose();
+		}
 
+		String newUsername = message.username;
+		if (newUsername != null) {
+			ctc.setUserName(newUsername + "_file");
+		}
+		System.out.println("Adding Filecontext : " + newUsername);
+		client.addConnectedUsers(ctc.getSelectionKey());
+		client.addFileContext(newUsername, ctc);
+		//client.removePendingConnectionToken(message.username);
+	}
+	
+	/**
+	 * Process Ip message authorization
+	 * @param msg
+	 * @param client
+	 * @param ctc
+	 */
 	private void authorizeIpAddress(Message msg, ClientMatou client, ContextClient ctc) {
 		MessageOneString message = (MessageOneString) msg;
 		System.out.println(ColorText.colorize(ColorText.GREEN, message.str)
@@ -195,7 +242,14 @@ public class HubClient {
 		// System.out.println("add username : " + bp.getField("username"));
 
 	}
-
+	
+	/**
+	 * Execute action corresponding to opcode
+	 * @param op
+	 * @param msg
+	 * @param client
+	 * @param ctc
+	 */
 	public void executeClient(Opcode op, Message msg, ClientMatou client, ContextClient ctc) {
 		ClientFunction function = clientMap.get(op);
 		if (op.op == Opcode.WHISP.op) {
@@ -228,12 +282,24 @@ public class HubClient {
 		client.addAwaitingFileUser(message.str1, message.str2, fileId);
 	}
 	
-
-	private void acceptedFileRequest(Message msg, ClientMatou client, ContextClient ctc) {
+	
+	/**
+	 * Send file to another client.
+	 * At this moment, fill the file queue of this other Contextclient
+	 * @param msg
+	 * @param client
+	 * @param msgContext
+	 */
+	private void acceptedFileRequest(Message msg, ClientMatou client, ContextClient msgContext) {
 		MessageTwoStringOneInt message = (MessageTwoStringOneInt) msg;
 		System.out.println("Sending file : " + message.str2 + " to " + message.str1);
 		// System.out.println("Use /f " + message.str + "path/to/your/file to send a
 		// file to " + message.str);
+		System.out.println("Need to get the fileContext of : " + message.str1);
+		ContextClient ctc = client.getContextFileFromUsername(message.str1);
+		if (ctc == null) {
+			return;
+		}
 		client.addAuthorizedToSendFile(ctc.getSelectionKey());
 		Path path = Paths.get(message.str2);
 		System.out.println(path.toString());
@@ -273,6 +339,12 @@ public class HubClient {
 
 	}
 	
+	/**
+	 * Receive a file
+	 * @param msg
+	 * @param client
+	 * @param ctc
+	 */
 	private void receiveFile(Message msg, ClientMatou client, ContextClient ctc) {
 		System.out.println("Receiving file ...");
 		MessageFile message = (MessageFile)msg;
@@ -286,7 +358,7 @@ public class HubClient {
 			fc.write(message.buffer);
 			if (message.endFlag == (byte)1) {
 				System.out.println("File received !");
-				//TODO
+				//TODO remove and check file size
 				//client.removeFile(message.fileId);
 			}
 			

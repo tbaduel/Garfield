@@ -92,7 +92,9 @@ public class ClientMatou {
 			while (ps == ProcessStatus.DONE ) {
 				Message msg = messageReader.get();
 				System.out.println("MESSAGE RECUP: " + msg.getOp());
-				if (Opcode.valueOfId(msg.getOp()) != Opcode.CHECK_PRIVATE && !client.connectedClients.contains(key)) {
+				if (Opcode.valueOfId(msg.getOp()) != Opcode.CHECK_PRIVATE
+						&& Opcode.valueOfId(msg.getOp()) != Opcode.CHECK_FILE
+						&& !client.connectedClients.contains(key)) {
 					silentlyClose();
 					return ;
 				}
@@ -219,6 +221,7 @@ public class ClientMatou {
 		 */
 		public void silentlyClose() {
 			try {
+				//TODO Remove all clients infos
 				client.removeConnectedClient(key);
 				sc.close();
 			} catch (IOException e) {
@@ -413,6 +416,11 @@ public class ClientMatou {
 		return idFileMap.get(fileId);
 	}
 	
+	/**
+	 * Get id corresponding to a filename
+	 * @param filename
+	 * @return Optinal<Integer> if present, Optinal.empty() otherwise
+	 */
 	public Optional<Integer> getIdFromFileName(String filename) {
 		Collection<Integer> icollection = idFileMap.keySet();
 		for (Integer i : icollection) {
@@ -421,6 +429,27 @@ public class ClientMatou {
 			}
 		}
 		return Optional.empty();
+	}
+	
+	/**
+	 * Add a file context connection corresponding to a user
+	 * @param username
+	 * @param ctc
+	 */
+	public void addFileContext(String username,ContextClient ctc) {
+		fileContextMap.put(username, ctc);
+	}
+	
+	public void removeFileContext(String username) {
+		fileContextMap.remove(username);
+	}
+	
+	public ContextClient getContextFileFromUsername(String username) {
+		System.out.println("GetContextFileFromUsername");
+		for (String name : fileContextMap.keySet()) {
+			System.out.println(name);
+		}
+		return fileContextMap.get(username);
 	}
 	
 	/**
@@ -701,6 +730,9 @@ public class ClientMatou {
 		if (sc == null)
 			return; // the selector gave a bad hint
 		System.out.println("Quelqu'un s'est connecté!");
+		System.out.println("Add = " + ((InetSocketAddress)sc.getRemoteAddress()).getAddress().toString() 
+				+ ", port = " + ((InetSocketAddress)sc.getRemoteAddress()).getPort()
+				);
 		sc.configureBlocking(false);
 		SelectionKey ClientKey = sc.register(selector, SelectionKey.OP_READ);
 		ContextClient ct = new ContextClient(this, ClientKey);

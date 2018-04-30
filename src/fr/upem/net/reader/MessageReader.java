@@ -32,7 +32,7 @@ public class MessageReader implements Reader {
 	public MessageReader(ByteBuffer bbin) {
 		bb = bbin;
 	}
-
+	
 	@Override
 	public ProcessStatus process() {
 		if (state == State.DONE || state == State.ERROR) {
@@ -121,6 +121,7 @@ public class MessageReader implements Reader {
 	}
 
 	/**
+	 * Get the Message
 	 * Be careful ! This method contain typo issues if you don't respect the
 	 * Garfield Protocol
 	 */
@@ -216,7 +217,12 @@ public class MessageReader implements Reader {
 
 		case FILE_SEND:
 			return new MessageFile(op, endFlag, fileId, bodyBuffer);
-
+		
+		case CHECK_FILE:
+			token = Integer.parseInt(bp.getField("token"));
+			username = bp.getField("username");
+			return new MessageStringToken(op, endFlag, username, token);
+			
 		default:
 			return new MessageOpcode(op, endFlag);
 		}
