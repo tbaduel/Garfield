@@ -46,70 +46,70 @@ public class EntityArrays {
 	        initialMap.put("\u00BD", "&frac12;"); // vulgar fraction one half = fraction one half
 	        initialMap.put("\u00BE", "&frac34;"); // vulgar fraction three quarters = fraction three quarters
 	        initialMap.put("\u00BF", "&iquest;"); // inverted question mark = turned question mark
-	        initialMap.put("\u00C0", "&Agrave;"); // À - uppercase A, grave accent
-	        initialMap.put("\u00C1", "&Aacute;"); // Á - uppercase A, acute accent
-	        initialMap.put("\u00C2", "&Acirc;"); // Â - uppercase A, circumflex accent
+	        initialMap.put("\u00C0", "&Agrave;"); // 
+	        initialMap.put("\u00C1", "&Aacute;"); //
+	        initialMap.put("\u00C2", "&Acirc;"); // 
 	        initialMap.put("\u00C3", "&Atilde;"); // Ã - uppercase A, tilde
 	        initialMap.put("\u00C4", "&Auml;"); // Ä - uppercase A, umlaut
 	        initialMap.put("\u00C5", "&Aring;"); // Å - uppercase A, ring
 	        initialMap.put("\u00C6", "&AElig;"); // Æ - uppercase AE
 	        initialMap.put("\u00C7", "&Ccedil;"); // Ç - uppercase C, cedilla
 	        initialMap.put("\u00C8", "&Egrave;"); // È - uppercase E, grave accent
-	        initialMap.put("\u00C9", "&Eacute;"); // É - uppercase E, acute accent
+	        initialMap.put("\u00C9", "&Eacute;"); // 
 	        initialMap.put("\u00CA", "&Ecirc;"); // Ê - uppercase E, circumflex accent
 	        initialMap.put("\u00CB", "&Euml;"); // Ë - uppercase E, umlaut
 	        initialMap.put("\u00CC", "&Igrave;"); // Ì - uppercase I, grave accent
-	        initialMap.put("\u00CD", "&Iacute;"); // Í - uppercase I, acute accent
-	        initialMap.put("\u00CE", "&Icirc;"); // Î - uppercase I, circumflex accent
-	        initialMap.put("\u00CF", "&Iuml;"); // Ï - uppercase I, umlaut
-	        initialMap.put("\u00D0", "&ETH;"); // Ð - uppercase Eth, Icelandic
+	        initialMap.put("\u00CD", "&Iacute;"); //
+	        initialMap.put("\u00CE", "&Icirc;"); // 
+	        initialMap.put("\u00CF", "&Iuml;"); // 
+	        initialMap.put("\u00D0", "&ETH;"); // 
 	        initialMap.put("\u00D1", "&Ntilde;"); // Ñ - uppercase N, tilde
 	        initialMap.put("\u00D2", "&Ograve;"); // Ò - uppercase O, grave accent
 	        initialMap.put("\u00D3", "&Oacute;"); // Ó - uppercase O, acute accent
 	        initialMap.put("\u00D4", "&Ocirc;"); // Ô - uppercase O, circumflex accent
 	        initialMap.put("\u00D5", "&Otilde;"); // Õ - uppercase O, tilde
-	        initialMap.put("\u00D6", "&Ouml;"); // Ö - uppercase O, umlaut
+	        initialMap.put("\u00D6", "&Ouml;"); // 
 	        initialMap.put("\u00D7", "&times;"); // multiplication sign
 	        initialMap.put("\u00D8", "&Oslash;"); // Ø - uppercase O, slash
 	        initialMap.put("\u00D9", "&Ugrave;"); // Ù - uppercase U, grave accent
 	        initialMap.put("\u00DA", "&Uacute;"); // Ú - uppercase U, acute accent
 	        initialMap.put("\u00DB", "&Ucirc;"); // Û - uppercase U, circumflex accent
-	        initialMap.put("\u00DC", "&Uuml;"); // Ü - uppercase U, umlaut
-	        initialMap.put("\u00DD", "&Yacute;"); // Ý - uppercase Y, acute accent
+	        initialMap.put("\u00DC", "&Uuml;"); // 
+	        initialMap.put("\u00DD", "&Yacute;"); // 
 	        initialMap.put("\u00DE", "&THORN;"); // Þ - uppercase THORN, Icelandic
 	        initialMap.put("\u00DF", "&szlig;"); // ß - lowercase sharps, German
 	        initialMap.put("\u00E0", "&agrave;"); // à - lowercase a, grave accent
 	        initialMap.put("\u00E1", "&aacute;"); // á - lowercase a, acute accent
 	        initialMap.put("\u00E2", "&acirc;"); // â - lowercase a, circumflex accent
 	        initialMap.put("\u00E3", "&atilde;"); // ã - lowercase a, tilde
-	        initialMap.put("\u00E4", "&auml;"); // ä - lowercase a, umlaut
+	        initialMap.put("\u00E4", "&auml;"); // 
 	        initialMap.put("\u00E5", "&aring;"); // å - lowercase a, ring
 	        initialMap.put("\u00E6", "&aelig;"); // æ - lowercase ae
 	        initialMap.put("\u00E7", "&ccedil;"); // ç - lowercase c, cedilla
 	        initialMap.put("\u00E8", "&egrave;"); // è - lowercase e, grave accent
 	        initialMap.put("\u00E9", "&eacute;"); // é - lowercase e, acute accent
 	        initialMap.put("\u00EA", "&ecirc;"); // ê - lowercase e, circumflex accent
-	        initialMap.put("\u00EB", "&euml;"); // ë - lowercase e, umlaut
+	        initialMap.put("\u00EB", "&euml;"); // 
 	        initialMap.put("\u00EC", "&igrave;"); // ì - lowercase i, grave accent
 	        initialMap.put("\u00ED", "&iacute;"); // í - lowercase i, acute accent
 	        initialMap.put("\u00EE", "&icirc;"); // î - lowercase i, circumflex accent
-	        initialMap.put("\u00EF", "&iuml;"); // ï - lowercase i, umlaut
+	        initialMap.put("\u00EF", "&iuml;"); // 
 	        initialMap.put("\u00F0", "&eth;"); // ð - lowercase eth, Icelandic
 	        initialMap.put("\u00F1", "&ntilde;"); // ñ - lowercase n, tilde
 	        initialMap.put("\u00F2", "&ograve;"); // ò - lowercase o, grave accent
 	        initialMap.put("\u00F3", "&oacute;"); // ó - lowercase o, acute accent
 	        initialMap.put("\u00F4", "&ocirc;"); // ô - lowercase o, circumflex accent
 	        initialMap.put("\u00F5", "&otilde;"); // õ - lowercase o, tilde
-	        initialMap.put("\u00F6", "&ouml;"); // ö - lowercase o, umlaut
+	        initialMap.put("\u00F6", "&ouml;"); // 
 	        initialMap.put("\u00F7", "&divide;"); // division sign
 	        initialMap.put("\u00F8", "&oslash;"); // ø - lowercase o, slash
 	        initialMap.put("\u00F9", "&ugrave;"); // ù - lowercase u, grave accent
 	        initialMap.put("\u00FA", "&uacute;"); // ú - lowercase u, acute accent
 	        initialMap.put("\u00FB", "&ucirc;"); // û - lowercase u, circumflex accent
-	        initialMap.put("\u00FC", "&uuml;"); // ü - lowercase u, umlaut
+	        initialMap.put("\u00FC", "&uuml;"); // 
 	        initialMap.put("\u00FD", "&yacute;"); // ý - lowercase y, acute accent
 	        initialMap.put("\u00FE", "&thorn;"); // þ - lowercase thorn, Icelandic
-	        initialMap.put("\u00FF", "&yuml;"); // ÿ - lowercase y, umlaut
+	        initialMap.put("\u00FF", "&yuml;"); // 
 	        ISO8859_1_ESCAPE = Collections.unmodifiableMap(initialMap);
 	    }
 

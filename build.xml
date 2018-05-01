@@ -1,0 +1,30 @@
+<?xml version="1.0" ?>
+<project name="Garfield" default="compile">
+	<property name="build.dir" value="build" />
+	<property name="src.dir" value="src" />
+	<property name="dist.dir" value="dist" />
+
+	<target name="init">
+		<mkdir dir="${build.dir}" />
+		<mkdir dir="${dist.dir}" />
+	</target>
+	<target name="clean" description="Fait le menage">
+		<delete dir="${build.dir}" />
+		<delete dir="${dist.dir}" />
+	</target>
+	<target name="compile" depends="init">
+		<javac srcdir="${src.dir}" destdir="${build.dir}" />
+	</target>
+	<target name="dist" depends="compile">
+		<jar destfile="${dist.dir}/ServerMatou.jar" basedir="${build.dir}">
+			<manifest>
+				<attribute name="Main-Class" value="fr.upem.net.server.ServerMatou" />
+			</manifest>
+		</jar>
+		<jar destfile="${dist.dir}/ClientMatou.jar" basedir="${build.dir}">
+			<manifest>
+				<attribute name="Main-Class" value="fr.upem.net.client.ClientMatou" />
+			</manifest>
+		</jar>
+	</target>
+</project>
