@@ -15,7 +15,6 @@ public class MessageIp extends Message {
 		this.username = username;
 		this.userReq = userReq;
 		this.token = token;
-		// TODO Auto-generated constructor stub
 	}
 
 }

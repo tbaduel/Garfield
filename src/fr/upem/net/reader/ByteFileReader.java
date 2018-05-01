@@ -52,8 +52,14 @@ public class ByteFileReader implements Reader {
 		}
 		return ProcessStatus.REFILL;
 	}
-
-	public ByteBuffer readBytes(int size) throws IOException {
+	
+	/**
+	 * Read size bytes on the buffer
+	 * @param size
+	 * @return the ByteBuffer containing the size read bytes
+	 * @throws IOException
+	 */
+	private ByteBuffer readBytes(int size) throws IOException {
 		ByteBuffer tmp = ByteBuffer.allocate(size);
 		if (bbin.hasRemaining()) {
 			int pos = bbin.position() + size;
@@ -66,7 +72,7 @@ public class ByteFileReader implements Reader {
 		}
 		return tmp;
 	}
-
+	
 	@Override
 	public Object get() throws IOException {
 		return buffer;

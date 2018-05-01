@@ -34,7 +34,15 @@ public class HubServ {
 		map.put(Opcode.WHISP_REFUSED, this::whispRefused);
 
 	}
-
+	
+	/**
+	 * Execute the action corresponding to a Message
+	 * @param msg
+	 * @param server
+	 * @param sc
+	 * @return the ByteBuffer of the message to send
+	 * @throws IOException
+	 */
 	public ByteBuffer ServerExecute(Message msg, ServerMatou server, SocketChannel sc) throws IOException {
 		if (msg == null) {
 			return null;
@@ -46,20 +54,16 @@ public class HubServ {
 		}
 		
 		return fnt.apply(msg, server, sc);
-		/*
-		 * switch(opcode) { case SIGNUP: signup(msg, server, sc); break;
-		 * 
-		 * case LOGIN: login(msg, server, sc); break;
-		 * 
-		 * case MESSAGE: message(msg, server,sc ); break;
-		 * 
-		 * default: break;
-		 * 
-		 * }
-		 */
 
 	}
-
+	
+	/**
+	 * Process a signup mesage
+	 * @param msg
+	 * @param server
+	 * @param sc
+	 * @return the ByteBuffer of the message to send
+	 */
 	private ByteBuffer signup(Message msg, ServerMatou server, SocketChannel sc) {
 		MessageTwoString message = (MessageTwoString) msg;
 		ByteBuffer bb = ByteBuffer.allocate(BUFFER_SIZE);
@@ -81,7 +85,14 @@ public class HubServ {
 		return bb;
 
 	}
-
+	
+	/**
+	 * Process a login message
+	 * @param msg
+	 * @param server
+	 * @param sc
+	 * @return the ByteBuffer of the message to send
+	 */
 	private ByteBuffer login(Message msg, ServerMatou server, SocketChannel sc) {
 		MessageTwoString message = (MessageTwoString) msg;
 		ByteBuffer bb = ByteBuffer.allocate(BUFFER_SIZE);
@@ -115,7 +126,14 @@ public class HubServ {
 		}
 		return bb;
 	}
-
+	
+	/**
+	 * Process a message Message (a broadcast message)
+	 * @param msg
+	 * @param server
+	 * @param sc
+	 * @return the ByteBuffer of the message to send
+	 */
 	private ByteBuffer message(Message msg, ServerMatou server, SocketChannel sc) {
 		MessageOneString message = (MessageOneString) msg;
 		ByteBuffer bb = ByteBuffer.allocate(BUFFER_SIZE);
@@ -151,6 +169,14 @@ public class HubServ {
 
 		return bb;
 	}
+	
+	/**
+	 * Create a Message
+	 * @param opcode
+	 * @param flag
+	 * @param body
+	 * @return the ByteBuffer of the message to send
+	 */
 	private ByteBuffer createMessage(Opcode opcode, byte flag, ByteBuffer body){
 		ByteBuffer bb = ByteBuffer.allocate(BUFFER_SIZE);
 		bb.putInt(opcode.op);
@@ -167,6 +193,14 @@ public class HubServ {
 		
 		return bb;
 	}
+	
+	/**
+	 * Process a private request connection
+	 * @param msg
+	 * @param server
+	 * @param sc
+	 * @return the ByteBuffer of the message to send
+	 */
 	private ByteBuffer requestPrivate(Message msg, ServerMatou server, SocketChannel sc) {
 		ByteBuffer bb;
 		MessageOneString message = (MessageOneString) msg;
@@ -209,7 +243,14 @@ public class HubServ {
 		}
 		return bb;
 	}
-
+	
+	/**
+	 * Process a whip_ok message
+	 * @param msg
+	 * @param server
+	 * @param sc
+	 * @return the ByteBuffer of the message to send
+	 */
 	private ByteBuffer whispOk(Message msg, ServerMatou server, SocketChannel sc) {
 		MessageIp message = (MessageIp) msg;
 		String username = message.username;
@@ -232,7 +273,14 @@ public class HubServ {
 		}
 		return createMessage(Opcode.WHISP_REFUSED,(byte)1, UTF8.encode("username: " + message.userReq));
 	}
-
+	
+	/**
+	 * Process a whisp_refused Message
+	 * @param msg
+	 * @param server
+	 * @param sc
+	 * @return the ByteBuffer of the message to send
+	 */
 	private ByteBuffer whispRefused(Message msg, ServerMatou server, SocketChannel sc) {
 		MessageOneString message = (MessageOneString) msg;
 		return createMessage(Opcode.WHISP_REFUSED,(byte)1, UTF8.encode("username: " + message.str));
@@ -244,7 +292,7 @@ public class HubServ {
 	 * 
 	 * @param server
 	 * @param username
-	 * @return
+	 * @return the SocketAddress
 	 */
 	private SocketAddress getKey(ServerMatou server, String username) {
 		Collection<SocketAddress> keys = server.map.keySet();
@@ -256,6 +304,10 @@ public class HubServ {
 		return null;
 	}
 	
+	/**
+	 * Get the Opcode corresponding to the pending action
+	 * @return the Opcode
+	 */
 	public Opcode getOpcodeAction() {
 		return opcodeAction;
 	}

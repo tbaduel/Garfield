@@ -22,7 +22,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import fr.upem.net.client.ClientMatou;
 import fr.upem.net.message.Message;
 import fr.upem.net.message.MessageIp;
 import fr.upem.net.message.MessageOneString;
@@ -44,18 +43,6 @@ public class ServerMatou {
 		private boolean closed = false;
 		private Opcode opcodeAction;
 		public String username; // added for whisper
-		
-		/* Try to read smthng */
-		/*
-		 * private boolean opCodeReaded = false; private boolean headerSizeReaded =
-		 * false; private boolean headerReaded = false; private boolean messageReaded =
-		 * false;
-		 * 
-		 * private boolean endFlag = false;
-		 * 
-		 * private Opcode opCode; private int headerSize = 0; private int messageSize =
-		 * 0; private ByteBuffer header; private ByteBuffer message;
-		 */
 
 		final private MessageReader messageReader = new MessageReader(bbin);
 
@@ -86,7 +73,6 @@ public class ServerMatou {
 		 * @throws IOException
 		 *
 		 */
-
 		private void processIn() throws IOException {
 			bbin.flip();
 			System.out.println("BBIN :  " + bbin);
@@ -232,7 +218,6 @@ public class ServerMatou {
 		 *
 		 * @throws IOException
 		 */
-
 		private void doRead() throws IOException {
 			int read;
 			if ((read = sc.read(bbin)) == -1) {
@@ -252,7 +237,6 @@ public class ServerMatou {
 		 *
 		 * @throws IOException
 		 */
-
 		private void doWrite() throws IOException {
 			bbout.flip();
 			System.out.println("ID to send = " + bbout.getInt());

@@ -47,18 +47,6 @@ public class ClientMatou {
 		private Opcode opcodeAction;
 		public String username; // added for whisper
 
-		/* Try to read smthng */
-		/*
-		 * private boolean opCodeReaded = false; private boolean headerSizeReaded =
-		 * false; private boolean headerReaded = false; private boolean messageReaded =
-		 * false;
-		 * 
-		 * private boolean endFlag = false;
-		 * 
-		 * private Opcode opCode; private int headerSize = 0; private int messageSize =
-		 * 0; private ByteBuffer header; private ByteBuffer message;
-		 */
-
 		final private MessageReader messageReader = new MessageReader(bbin);
 
 		public ContextClient(ClientMatou client, SelectionKey key) {
@@ -68,11 +56,21 @@ public class ClientMatou {
 			this.client = client;
 		}
 
+		/**
+		 * Set the username of a ContextClient
+		 * 
+		 * @param username
+		 */
 		public void setUserName(String username) {
 			// added for whisper
 			this.username = username;
 		}
-		
+
+		/**
+		 * Get the SelectionKey corresponding of ContextClient connection
+		 * 
+		 * @return SelectionKey of ContextClient connection
+		 */
 		public SelectionKey getSelectionKey() {
 			return key;
 		}
@@ -89,51 +87,27 @@ public class ClientMatou {
 		private void processIn() throws IOException {
 			bbin.flip();
 			ProcessStatus ps = messageReader.process();
-			while (ps == ProcessStatus.DONE ) {
+			while (ps == ProcessStatus.DONE) {
 				Message msg = messageReader.get();
 				System.out.println("MESSAGE RECUP: " + msg.getOp());
 				if (Opcode.valueOfId(msg.getOp()) != Opcode.CHECK_PRIVATE
 						&& Opcode.valueOfId(msg.getOp()) != Opcode.CHECK_FILE
 						&& !client.connectedClients.contains(key)) {
 					silentlyClose();
-					return ;
+					return;
 				}
 				client.hubClient.executeClient(Opcode.valueOfId(msg.getOp()), msg, client, this);
 				messageReader.reset();
-				
+
 				ps = ProcessStatus.REFILL;
 				ps = messageReader.process();
 				System.out.println("new ps = " + ps);
 			}
 			bbin.compact();
-			/*else {
-				 System.out.println("not done");
-			}
-			*/
+			/*
+			 * else { System.out.println("not done"); }
+			 */
 		}
-		
-		
-		
-		/*
-		private void processIn() throws IOException {
-			bbin.flip();
-			ProcessStatus ps = messageReader.process();
-			if (ps == ProcessStatus.DONE) {
-				Message msg = messageReader.get();
-				System.out.println("MESSAGE RECUP: " + msg.getOp());
-				if (Opcode.valueOfId(msg.getOp()) != Opcode.CHECK_PRIVATE && !client.connectedClients.contains(key)) {
-					silentlyClose();
-					return ;
-				}
-				client.hubClient.executeClient(Opcode.valueOfId(msg.getOp()), msg, client, this);
-				messageReader.reset();
-				bbin.compact();
-				
-			} else {
-				 System.out.println("not done");
-			}
-		}
-		*/
 
 		/**
 		 * Process the message
@@ -169,7 +143,7 @@ public class ClientMatou {
 		 *
 		 */
 		private void processOut() {
-			
+
 			while (bbout.remaining() > 0 && queue.size() > 0) {
 				// System.out.println("remaining bbout " + bbout.remaining());
 				ByteBuffer a = queue.peek();
@@ -181,9 +155,8 @@ public class ClientMatou {
 					System.out.println("Ya la place");
 					bbout.put(a);
 					queue.poll();
-					
-				}
-				else {
+
+				} else {
 					System.out.println("Je remets");
 					a.position(a.limit());
 					return;
@@ -199,7 +172,6 @@ public class ClientMatou {
 		 * updateInterestOps and after the call. Also it is assumed that process has
 		 * been be called just before updateInterestOps.
 		 */
-
 		private void updateInterestOps() {
 			int newInterestOps = 0;
 			if (!closed && bbin.hasRemaining()) {
@@ -221,7 +193,7 @@ public class ClientMatou {
 		 */
 		public void silentlyClose() {
 			try {
-				//TODO Remove all clients infos
+				// TODO Remove all clients infos
 				client.removeConnectedClient(key);
 				sc.close();
 			} catch (IOException e) {
@@ -237,7 +209,6 @@ public class ClientMatou {
 		 *
 		 * @throws IOException
 		 */
-
 		private void doRead() throws IOException {
 			int read;
 			if ((read = sc.read(bbin)) == -1) {
@@ -258,20 +229,12 @@ public class ClientMatou {
 		 *
 		 * @throws IOException
 		 */
-
 		private void doWrite() throws IOException {
 			bbout.flip();
-			// System.out.println("ID to send = " + bbout.getInt());
-			// bbout.position(0);
-			// System.out.println("Avant envoie : " + bbout);
-
-			/* Two option */
-			// System.out.println("WRITING " + sc.write(bbout));
-			System.out.println("WRITING TO "  + sc.getRemoteAddress());
 			sc.write(bbout);
-			System.out.println("WROTE TO "  + sc.getRemoteAddress());
+			//System.out.println("WROTE TO " + sc.getRemoteAddress());
 			bbout.compact();
-			System.out.println("Il reste a envoyer " + bbout);
+			//System.out.println("Il reste a envoyer " + bbout);
 			processOut();
 			updateInterestOps();
 		}
@@ -301,7 +264,12 @@ public class ClientMatou {
 		}
 		return null;
 	}
-
+	
+	/**
+	 * Get the ContextClient corresponding of a username connection
+	 * @param username of the Context needed
+	 * @return the ContextClient correponding to
+	 */
 	public ContextClient getContextFromUsername(String username) {
 		for (SelectionKey key : selector.keys()) {
 			SelectableChannel channel = key.channel();
@@ -324,11 +292,9 @@ public class ClientMatou {
 	public final Selector selector;
 	private final Set<SelectionKey> selectedKeys;
 	private SelectionKey uniqueKey;
-	//final private ByteBuffer bbin = ByteBuffer.allocateDirect(BUFFER_SIZE);
-	//final private MessageReader messageReader = new MessageReader(bbin);
 	private final HubClient hubClient = new HubClient();
 	final private Queue<ByteBuffer> queue = new LinkedBlockingQueue<>();
-	final private Queue<ByteBuffer> queueFile = new LinkedBlockingQueue<>();
+	//final private Queue<ByteBuffer> queueFile = new LinkedBlockingQueue<>();
 	// final private Queue<ByteBuffer> serverQueue = new LinkedList<>();
 	final private Set<SelectionKey> connectedClients = new HashSet<>();
 	final private Set<SelectionKey> authorizedToSendFile = new HashSet<>();
@@ -348,9 +314,9 @@ public class ClientMatou {
 	private Map<String, SelectionKey> usernameContext = new HashMap<>();
 	private Map<Integer, String> idFileMap = new HashMap<>();
 	private Map<String, ContextClient> fileContextMap = new HashMap<>();
-	
+
 	public ClientMatou(SocketChannel sc, Scanner scan, int port, String address) throws IOException {
-		
+
 		ssc = ServerSocketChannel.open();
 		ssc.bind(null);
 		ssc.configureBlocking(false);
@@ -369,21 +335,36 @@ public class ClientMatou {
 
 	/**
 	 * Generate a random token and returns it
+	 * 
 	 * @return random token
 	 */
 	public int generateToken() {
 		return rand.nextInt(10000000);
 	}
 	
+	/**
+	 * Add a file to authorized list to send
+	 * @param key
+	 */
 	public void addAuthorizedToSendFile(SelectionKey key) {
 		authorizedToSendFile.add(key);
 	}
 	
-	
+	/**
+	 * Remove a connected client
+	 * @param key the key of client to remove
+	 */
 	public void removeConnectedClient(SelectionKey key) {
 		connectedClients.remove(key);
 	}
-	
+
+	/**
+	 * Add a file corresponding to a user. A file is defined by a name and
+	 * an id (integer) which represent the file in file sending message
+	 * @param user
+	 * @param file
+	 * @param fileId
+	 */
 	public void addAwaitingFileUser(String user, String file, int fileId) {
 		Set<FileInfo> files = pendingConnectionFile.get(user);
 		if (files == null) {
@@ -396,28 +377,39 @@ public class ClientMatou {
 		idFileMap.put(fileId, file);
 	}
 	
+	/**
+	 * Link a user to a SelectionKey (associated ta a ContextClient)
+	 * @param user
+	 * @param key
+	 */
 	public void addUsernameContext(String user, SelectionKey key) {
 		usernameContext.put(user, key);
 	}
 	
-	public void addAuthorizedToSendFile(Optional<SelectionKey> key) {		
+	/**
+	 * Add a authorized file to Send
+	 * @param key
+	 */
+	public void addAuthorizedToSendFile(Optional<SelectionKey> key) {
 		if (!key.isPresent()) {
-			return ;
+			return;
 		}
 		authorizedToSendFile.add(key.get());
 	}
-	
+
 	/**
 	 * Get the String name of a file from id
-	 * @param fileId
-	 * @return
+	 * 
+	 * @param fileId the id of the file
+	 * @return the name of the file
 	 */
 	public String getFileFromId(int fileId) {
 		return idFileMap.get(fileId);
 	}
-	
+
 	/**
 	 * Get id corresponding to a filename
+	 * 
 	 * @param filename
 	 * @return Optinal<Integer> if present, Optinal.empty() otherwise
 	 */
@@ -430,20 +422,30 @@ public class ClientMatou {
 		}
 		return Optional.empty();
 	}
-	
+
 	/**
 	 * Add a file context connection corresponding to a user
+	 * 
 	 * @param username
-	 * @param ctc
+	 * @param ctc the ContextClient
 	 */
-	public void addFileContext(String username,ContextClient ctc) {
+	public void addFileContext(String username, ContextClient ctc) {
 		fileContextMap.put(username, ctc);
 	}
 	
+	/**
+	 * Remove a File Context
+	 * @param username
+	 */
 	public void removeFileContext(String username) {
 		fileContextMap.remove(username);
 	}
 	
+	/**
+	 * Get the File ContextClient corresponding to a username 
+	 * @param username
+	 * @return
+	 */
 	public ContextClient getContextFileFromUsername(String username) {
 		System.out.println("GetContextFileFromUsername");
 		for (String name : fileContextMap.keySet()) {
@@ -451,53 +453,58 @@ public class ClientMatou {
 		}
 		return fileContextMap.get(username);
 	}
-	
+
 	/**
 	 * Remove the file from the file pool
+	 * 
 	 * @param fileId
 	 */
 	public void removeFile(int fileId) {
 		idFileMap.remove(fileId);
-		
+
 	}
-	
+
 	/**
-	 * Set the username of the client 
+	 * Set the username of the client
+	 * 
 	 * @param username
 	 */
 	public void setUsername(String username) {
 		this.username = username;
 	}
-	
+
 	/**
 	 * Get token of the client
+	 * 
 	 * @return the token (int)
 	 */
 	public int getToken() {
 		return token;
 	}
-	
+
 	/**
 	 * Get address of client
+	 * 
 	 * @return
 	 */
 	public String getAddress() {
 		return address;
 	}
-	
+
 	/**
 	 * Get port of the current client connection
+	 * 
 	 * @return
 	 */
 	public int getPort() {
 		return port;
 	}
-	
+
 	/**
-	 * Read all the byte of the current ByteBuffer on the SocketChannel. It 
-	 * read bb.remaining() bytes.
-	 * The ByteBuffer need to be in write mode.
-	 * If the read return -1 (socket closed), return false.
+	 * Read all the byte of the current ByteBuffer on the SocketChannel. It read
+	 * bb.remaining() bytes. The ByteBuffer need to be in write mode. If the read
+	 * return -1 (socket closed), return false.
+	 * 
 	 * @param sc
 	 * @param bb
 	 * @return true if all bytes are read, false otherwise
@@ -552,13 +559,14 @@ public class ClientMatou {
 	public void sendServer(ByteBuffer send) throws IOException {
 		sc.write(send);
 	}
-	
+
 	/**
 	 * Try to connect to the main server.
+	 * 
 	 * @param login
 	 * @param password
 	 * @param newUser
-	 * @return true if connected to the server, false otherwise 
+	 * @return true if connected to the server, false otherwise
 	 * @throws IOException
 	 */
 	public boolean login(String login, String password, boolean newUser) throws IOException {
@@ -578,30 +586,29 @@ public class ClientMatou {
 
 	/**
 	 * Get name in Keys
+	 * 
 	 * @param user
 	 * @return SelectionKey corresponding to the user
 	 */
 	public Optional<SelectionKey> getNameInKeys(String user) {
 		SelectionKey key = usernameContext.get(user);
 		return key != null ? Optional.of(key) : Optional.empty();
-		/*System.out.println("There are " + connectedClients.size() + " connected clients");
-		connectedClients.stream().map(x -> {
-			if (((ContextClient) x.attachment()) != null) {
-				if (((ContextClient) x.attachment()).username.equals(user)) {
-					return Optional.of(x);
-				}
-			}
-			return Optional.empty();
-		});
-		return Optional.empty();*/
+		/*
+		 * System.out.println("There are " + connectedClients.size() +
+		 * " connected clients"); connectedClients.stream().map(x -> { if
+		 * (((ContextClient) x.attachment()) != null) { if (((ContextClient)
+		 * x.attachment()).username.equals(user)) { return Optional.of(x); } } return
+		 * Optional.empty(); }); return Optional.empty();
+		 */
 	}
-	
+
 	/**
 	 * Currently not used
+	 * 
 	 * @param key
 	 * @return
 	 */
-	//TODO
+	// TODO
 	public boolean isUserAuthorizedToSendFile(Optional<SelectionKey> key) {
 		if (!key.isPresent()) {
 			return false;
@@ -611,14 +618,18 @@ public class ClientMatou {
 
 	/**
 	 * Currently not used
+	 * 
 	 * @param req
 	 * @param file
 	 */
-	//TODO
+	// TODO
 	public void sendFile(ByteBuffer req, String file) {
 		System.out.println("Sending file !");
 	}
 	
+	/**
+	 * Start to read on the System.in commands and text message
+	 */
 	public void beginChat() {
 		try {
 			while (!Thread.interrupted() && scan.hasNextLine()) {
@@ -628,20 +639,20 @@ public class ClientMatou {
 				}
 				ParserLine parser = ParserLine.parse(line, this);
 				ByteBuffer req = HubClient.formatBuffer(sc, parser.line, parser.opcode.op);
-				//if (parser.opcode == Opcode.FILE_OK) {
-				//	addAuthorizedToSendFile(getNameInKeys(parser.additionalInfo));
-				//}
+				// if (parser.opcode == Opcode.FILE_OK) {
+				// addAuthorizedToSendFile(getNameInKeys(parser.additionalInfo));
+				// }
 				if (parser.opcode == Opcode.ERROR) {
 					System.out.println("Erreur de saisie");
-				} else if (parser.opcode == Opcode.WHISP || parser.opcode == Opcode.FILE_REQUEST || parser.opcode == Opcode.FILE_OK || parser.opcode == Opcode.FILE_SEND) {
+				} else if (parser.opcode == Opcode.WHISP || parser.opcode == Opcode.FILE_REQUEST
+						|| parser.opcode == Opcode.FILE_OK || parser.opcode == Opcode.FILE_SEND) {
 					System.out.println("user whispered = " + parser.additionalInfo);
 					if (getNameInKeys(parser.additionalInfo).isPresent()) {
 						System.out.println(parser.additionalInfo + " is present !");
 						userWhispered = parser.additionalInfo; // for whispers
 						mapWhisperMessage.put(userWhispered, req);
 					}
-				}
-				else {
+				} else {
 					queue.add(req);
 				}
 				selector.wakeup();
@@ -676,15 +687,30 @@ public class ClientMatou {
 			}
 		}
 	}
-
+	
+	/**
+	 * Add a waiting user for connection
+	 * Token is a random number (integer)
+	 * @param user
+	 */
 	public void addAwaitingUsers(String user) {
 		pendingConnectionToken.put(user, generateToken());
 	}
 	
+	/**
+	 * Add a waiting user for connection with token
+	 * @param user
+	 * @param token
+	 */
 	public void addAwaitingUsers(String user, int token) {
 		pendingConnectionToken.put(user, token);
 	}
 	
+	/**
+	 * Get the token of a pending connection with a user
+	 * @param user
+	 * @return the token if exists, Optional.empty() otherwise;
+	 */
 	public Optional<Integer> getPendingConnectionToken(String user) {
 		Integer ret = pendingConnectionToken.get(user);
 		if (ret == null) {
@@ -701,38 +727,34 @@ public class ClientMatou {
 		connectedClients.add(client);
 	}
 
-	/*
-	 * private void doWrite() throws IOException { // dowrite ne s'executera pas
-	 * tant que l'utilisateur n'aura pas ecrit sur // l'entrée standard // (en gros
-	 * tant que bbout ne sera pas rempli par l'autre thread.) bbout.flip();
-	 * bbout.position(0); sc.write(bbout); bbout.compact(); updateInterestOps();
-	 * 
-	 * }
-	 */
 
+	/**
+	 * Check if the SocketChannel associated to a key is connected.
+	 * If connected, update the InterestOps of the key.
+	 * @param key
+	 * @throws IOException
+	 */
 	public void doConnect(SelectionKey key) throws IOException {
-		if (!sc.finishConnect()) {
+		if (!((ContextClient) key.attachment()).sc.finishConnect()) {
 			// System.out.println("Not connected now !");
 			return;
 		}
 		((ContextClient) key.attachment()).updateInterestOps();
 	}
 
-	/*
-	 * private void doRead() throws IOException {
-	 * System.out.println("this doread closes: " + closed); if (sc.read(bbin) == -1)
-	 * { log.info("Closing connection."); silentlyClose(); return ; } processIn();
-	 * updateInterestOps(); }
+	
+	/**
+	 * Accept a connection
+	 * @param key
+	 * @throws IOException
 	 */
-
 	private void doAccept(SelectionKey key) throws IOException {
 		SocketChannel sc = ssc.accept();
 		if (sc == null)
 			return; // the selector gave a bad hint
 		System.out.println("Quelqu'un s'est connecté!");
-		System.out.println("Add = " + ((InetSocketAddress)sc.getRemoteAddress()).getAddress().toString() 
-				+ ", port = " + ((InetSocketAddress)sc.getRemoteAddress()).getPort()
-				);
+		System.out.println("Add = " + ((InetSocketAddress) sc.getRemoteAddress()).getAddress().toString() + ", port = "
+				+ ((InetSocketAddress) sc.getRemoteAddress()).getPort());
 		sc.configureBlocking(false);
 		SelectionKey ClientKey = sc.register(selector, SelectionKey.OP_READ);
 		ContextClient ct = new ContextClient(this, ClientKey);
@@ -740,10 +762,14 @@ public class ClientMatou {
 		// System.out.println("===============+++>ADDING:");
 		// System.out.println(ct);
 		// TODO
-		//addConnectedUsers(ClientKey);
+		// addConnectedUsers(ClientKey);
 
 	}
-
+	
+	/**
+	 * Process the selected Keys.
+	 * @throws IOException
+	 */
 	private void processSelectedKeys() throws IOException {
 
 		for (SelectionKey key : selectedKeys) {
@@ -762,7 +788,12 @@ public class ClientMatou {
 
 		}
 	}
-
+	
+	/**
+	 * Launch the server
+	 * @throws IOException
+	 * @throws InterruptedException
+	 */
 	public void launch() throws IOException, InterruptedException {
 		sc.configureBlocking(false);
 		uniqueKey = sc.register(selector, SelectionKey.OP_CONNECT);
@@ -789,7 +820,10 @@ public class ClientMatou {
 		}
 		reader.join();
 	}
-
+	
+	/**
+	 * Display the usage of the program
+	 */
 	public static void usage() {
 		System.out.println("usage: java fr.upem.net.tcp.ClientMatou address port");
 	}

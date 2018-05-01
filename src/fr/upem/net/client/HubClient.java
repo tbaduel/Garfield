@@ -180,7 +180,7 @@ public class HubClient {
 	
 	/**
 	 * Check connection for message socket, and add to client's connected users
-	 * @param msg
+	 * @param msg the Message
 	 * @param client
 	 * @param ctc
 	 */
@@ -205,7 +205,7 @@ public class HubClient {
 	
 	/**
 	 * Check connection for file socket transfer, and add to client's connected users
-	 * @param msg
+	 * @param msg the Message
 	 * @param client
 	 * @param ctc
 	 */
@@ -246,7 +246,7 @@ public class HubClient {
 	/**
 	 * Execute action corresponding to opcode
 	 * @param op
-	 * @param msg
+	 * @param msg the Message
 	 * @param client
 	 * @param ctc
 	 */
@@ -265,12 +265,24 @@ public class HubClient {
 			function.apply(msg, client, ctc);
 		}
 	}
-
+	
+	/**
+	 * Process error Ip Address Message
+	 * @param msg the Message
+	 * @param client
+	 * @param ctc
+	 */
 	private void errorIpAddress(Message msg, ClientMatou client, ContextClient ctc) {
 		MessageOneString message = (MessageOneString) msg;
 		System.err.println(message.str + " failed to communicate with you.");
 	}
-
+	
+	/**
+	 * Process a File request message
+	 * @param msg the Message
+	 * @param client
+	 * @param ctc
+	 */
 	private void sendFileRequest(Message msg, ClientMatou client, ContextClient ctc) {
 		MessageTwoString message = (MessageTwoString) msg;
 		Random r = new Random();
@@ -286,7 +298,7 @@ public class HubClient {
 	/**
 	 * Send file to another client.
 	 * At this moment, fill the file queue of this other Contextclient
-	 * @param msg
+	 * @param msg the Message
 	 * @param client
 	 * @param msgContext
 	 */
@@ -341,7 +353,7 @@ public class HubClient {
 	
 	/**
 	 * Receive a file
-	 * @param msg
+	 * @param msg the Message
 	 * @param client
 	 * @param ctc
 	 */
