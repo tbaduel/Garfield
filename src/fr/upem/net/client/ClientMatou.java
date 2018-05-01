@@ -621,16 +621,7 @@ public class ClientMatou {
 		return authorizedToSendFile.contains(key.get());
 	}
 
-	/**
-	 * Currently not used
-	 * 
-	 * @param req
-	 * @param file
-	 */
-	// TODO
-	public void sendFile(ByteBuffer req, String file) {
-		System.out.println("Sending file !");
-	}
+
 	
 	/**
 	 * Start to read on the System.in commands and text message

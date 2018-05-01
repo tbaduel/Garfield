@@ -1,10 +1,8 @@
 package fr.upem.net.parser;
 
 import java.io.IOException;
-import java.util.ArrayList;
 //import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -82,9 +80,11 @@ public class BodyParser {
 		return BodyParser.create(size, map);
 	}
 	
+	/*
 	public static List<String> splitter(String data) {
 		List<String> ret = new ArrayList<>();
 		
 		return null;
 	}
+	*/
 }
