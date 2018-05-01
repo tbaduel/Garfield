@@ -32,7 +32,7 @@ public class MessageReader implements Reader {
 	public MessageReader(ByteBuffer bbin) {
 		bb = bbin;
 	}
-	
+
 	@Override
 	public ProcessStatus process() {
 		if (state == State.DONE || state == State.ERROR) {
@@ -110,9 +110,8 @@ public class MessageReader implements Reader {
 	}
 
 	/**
-	 * Get the Message
-	 * Be careful ! This method contain typo issues if you don't respect the
-	 * Garfield Protocol
+	 * Get the Message Be careful ! This method contain typo issues if you don't
+	 * respect the Garfield Protocol
 	 */
 	@Override
 	public Message get() throws IOException {
@@ -124,7 +123,7 @@ public class MessageReader implements Reader {
 		int token;
 		String ip;
 		BodyParser bp = null;
-		//int fileId;
+		// int fileId;
 		if (state != State.DONE)
 			throw new IllegalStateException();
 		Opcode opcode = Opcode.valueOfId(op);
@@ -135,88 +134,165 @@ public class MessageReader implements Reader {
 		case LOGIN:
 			username = bp.getField("username");
 			password = bp.getField("password");
+			if (username == null || password == null) {
+				return new MessageOpcode(Opcode.ERROR.op, endFlag);
+			}
 			return new MessageTwoString(op, endFlag, username, password);
 		case SIGNUP:
 			username = bp.getField("username");
 			password = bp.getField("password");
+			if (username == null || password == null) {
+				return new MessageOpcode(Opcode.ERROR.op, endFlag);
+			}
 			return new MessageTwoString(op, endFlag, username, password);
 
 		case MESSAGE:
 			data = bp.getField("data");
+			if (data == null) {
+				return new MessageOpcode(Opcode.ERROR.op, endFlag);
+			}
 			return new MessageOneString(op, endFlag, data);
 
 		case WHISP:
 			username = bp.getField("username");
 			data = bp.getField("data");
+			if (username == null || data == null) {
+				return new MessageOpcode(Opcode.ERROR.op, endFlag);
+			}
 			return new MessageTwoString(op, endFlag, username, data);
 
 		case MESSAGEBROADCAST:
 			username = bp.getField("username");
 			data = bp.getField("data");
+			if (username == null || data == null) {
+				return new MessageOpcode(Opcode.ERROR.op, endFlag);
+			}
 			return new MessageTwoString(op, endFlag, username, data);
 
 		case REQUEST:
 			userReq = bp.getField("userReq");
+			if (userReq == null) {
+				return new MessageOpcode(Opcode.ERROR.op, endFlag);
+			}
 			return new MessageOneString(op, endFlag, userReq);
 
 		case FILE_REQUEST:
-			username = bp.getField("username");
-			data = bp.getField("file");
-			fileId = Integer.parseInt(bp.getField("fileId"));
-			return new MessageTwoStringOneInt(op, endFlag, username, data,fileId);
+			try {
+				username = bp.getField("username");
+				data = bp.getField("file");
+				fileId = Integer.parseInt(bp.getField("fileId"));
+				if (username == null || data == null) {
+					return new MessageOpcode(Opcode.ERROR.op, endFlag);
+				}
+				return new MessageTwoStringOneInt(op, endFlag, username, data, fileId);
+			} catch (NumberFormatException e) {
+				return new MessageOpcode(Opcode.ERROR.op, endFlag);
+			}
 
 		case FILE_OK:
-			username = bp.getField("username");
-			data = bp.getField("file");
-			fileId = Integer.parseInt(bp.getField("fileId"));
-			return new MessageTwoStringOneInt(op, endFlag, username, data, fileId);
+			try {
+				username = bp.getField("username");
+				data = bp.getField("file");
+				fileId = Integer.parseInt(bp.getField("fileId"));
+				if (username == null || data == null) {
+					return new MessageOpcode(Opcode.ERROR.op, endFlag);
+				}
+				return new MessageTwoStringOneInt(op, endFlag, username, data, fileId);
+			} catch (NumberFormatException e) {
+				return new MessageOpcode(Opcode.ERROR.op, endFlag);
+			}
 
 		case IPRESPONSE:
-			username = bp.getField("username");
-			userReq = bp.getField("userReq");
-			ip = bp.getField("ip");
-			port = Integer.parseInt(bp.getField("port"));
-			token = Integer.parseInt(bp.getField("token"));
-			return new MessageIp(op, endFlag, ip, port, username, userReq, token);
+			try {
+				username = bp.getField("username");
+				userReq = bp.getField("userReq");
+				ip = bp.getField("ip");
+				port = Integer.parseInt(bp.getField("port"));
+				token = Integer.parseInt(bp.getField("token"));
+				if (username == null || userReq == null) {
+					return new MessageOpcode(Opcode.ERROR.op, endFlag);
+				}
+				return new MessageIp(op, endFlag, ip, port, username, userReq, token);
+			} catch (NumberFormatException e) {
+				return new MessageOpcode(Opcode.ERROR.op, endFlag);
+			}
 
 		case WHISP_OK:
-			username = bp.getField("username");
-			userReq = bp.getField("userReq");
-			ip = bp.getField("ip");
-			port = Integer.parseInt(bp.getField("port"));
-			token = Integer.parseInt(bp.getField("token"));
-			return new MessageIp(op, endFlag, ip, port, username, userReq, token);
+			try {
+				username = bp.getField("username");
+				userReq = bp.getField("userReq");
+				ip = bp.getField("ip");
+				port = Integer.parseInt(bp.getField("port"));
+				token = Integer.parseInt(bp.getField("token"));
+				if (username == null || userReq == null) {
+					return new MessageOpcode(Opcode.ERROR.op, endFlag);
+				}
+				return new MessageIp(op, endFlag, ip, port, username, userReq, token);
+			} catch (NumberFormatException e) {
+				return new MessageOpcode(Opcode.ERROR.op, endFlag);
+			}
 
 		case WHISP_REQUEST:
 			username = bp.getField("username");
+			if (username == null) {
+				return new MessageOpcode(Opcode.ERROR.op, endFlag);
+			}
 			return new MessageOneString(op, endFlag, username);
 
 		case WHISP_ERR:
 			userReq = bp.getField("userReq");
+			if (userReq == null) {
+				return new MessageOpcode(Opcode.ERROR.op, endFlag);
+			}
 			return new MessageOneString(op, endFlag, userReq);
 
 		case WHISP_REFUSED:
 			username = bp.getField("username");
 			userReq = bp.getField("userReq");
+			if (username == null || userReq == null) {
+				return new MessageOpcode(Opcode.ERROR.op, endFlag);
+			}
 			return new MessageTwoString(op, endFlag, username, userReq);
 
 		case CHECK_PRIVATE:
-			token = Integer.parseInt(bp.getField("token"));
-			username = bp.getField("username");
-			return new MessageStringToken(op, endFlag, username, token);
+			try {
+				token = Integer.parseInt(bp.getField("token"));
+				username = bp.getField("username");
+				if (username == null) {
+					return new MessageOpcode(Opcode.ERROR.op, endFlag);
+				}
+				return new MessageStringToken(op, endFlag, username, token);
+			} catch (NumberFormatException e) {
+				return new MessageOpcode(Opcode.ERROR.op, endFlag);
+			}
 
 		case FILE_SEND:
 			return new MessageFile(op, endFlag, fileId, bodyBuffer);
-		
+
 		case CHECK_FILE:
-			token = Integer.parseInt(bp.getField("token"));
-			username = bp.getField("username");
-			return new MessageStringToken(op, endFlag, username, token);
+			try {
+				token = Integer.parseInt(bp.getField("token"));
+				username = bp.getField("username");
+				if (username == null) {
+					return new MessageOpcode(Opcode.ERROR.op, endFlag);
+				}
+				return new MessageStringToken(op, endFlag, username, token);
+			} catch (NumberFormatException e) {
+				return new MessageOpcode(Opcode.ERROR.op, endFlag);
+			}
+
 		case FILE_REFUSED:
-			username = bp.getField("username");
-			data = bp.getField("file");
-			fileId = Integer.parseInt(bp.getField("fileId"));
-			return new MessageTwoStringOneInt(op, endFlag, username, data, fileId);
+			try {
+				username = bp.getField("username");
+				data = bp.getField("file");
+				fileId = Integer.parseInt(bp.getField("fileId"));
+				if (username == null || data == null) {
+					return new MessageOpcode(Opcode.ERROR.op, endFlag);
+				}
+				return new MessageTwoStringOneInt(op, endFlag, username, data, fileId);
+			} catch (NumberFormatException e) {
+				return new MessageOpcode(Opcode.ERROR.op, endFlag);
+			}
 
 		default:
 			return new MessageOpcode(op, endFlag);

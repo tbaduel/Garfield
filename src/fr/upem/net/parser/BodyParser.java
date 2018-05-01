@@ -32,14 +32,28 @@ public class BodyParser {
     	return new BodyParser(0, fields);
     }
     
+    /**
+     * Add a key/value
+     * @param field the key
+     * @param value the value
+     */
     public void addField(String field, String value) {
     	fields.put(field.toLowerCase(), value);
     }
     
+    /**
+     * Get the field corresponding to the string key
+     * @param field the key
+     * @return the String value of the key
+     */
     public String getField(String field) {
     	return fields.get(field.toLowerCase());
     }
     
+    /**
+     * Get the size
+     * @return the size
+     */
     public int getSize() {
     	return size;
     }
