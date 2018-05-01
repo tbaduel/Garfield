@@ -50,21 +50,16 @@ public class MessageReader implements Reader {
 					op = (Integer) iRead.get();
 					iRead.reset();
 					state = State.WAITING_HEADER_SIZE;
-					// System.out.println("OP READ");
-					System.out.println("op  = " + op);
 				}
 			}
-			// System.out.println("Remaining : "+ bb.remaining());
 			if (state == State.WAITING_HEADER_SIZE) {
 				ps = iRead.process();
 				if (ps == ProcessStatus.DONE) {
 					headerSize = (Integer) iRead.get();
 					iRead.reset();
 					state = State.WAITING_END_FLAG;
-					// System.out.println("HEADER_SIZE READ");
 				}
 			}
-			// System.out.println("Remaining : "+ bb.remaining());
 			if (state == State.WAITING_END_FLAG) {
 				ps = bRead.process();
 				if (ps == ProcessStatus.DONE) {
@@ -75,7 +70,6 @@ public class MessageReader implements Reader {
 					} else {
 						state = State.WAITING_BODY;
 					}
-					// System.out.println("endFlag = " + endFlag );
 				}
 			}
 			if (state == State.WAITING_FILEID) {
@@ -86,13 +80,11 @@ public class MessageReader implements Reader {
 					state = State.WAITING_BODY;
 				}
 			}
-			// System.out.println("Remaining : "+ bb.remaining());
 			if (state == State.WAITING_BODY) {
 				if (op == Opcode.FILE_SEND.op) {
 					ps = bfRead.process();
 					if (ps == ProcessStatus.DONE) {
 						bodyBuffer = (ByteBuffer) bfRead.get();
-						System.out.println("File received, size = " + bodyBuffer.remaining());
 						bfRead.reset();
 						state = State.DONE;
 						return ProcessStatus.DONE;
@@ -103,7 +95,6 @@ public class MessageReader implements Reader {
 						body = (String) strRead.get();
 						strRead.reset();
 						state = State.DONE;
-						// System.out.println("STR READ");
 						return ProcessStatus.DONE;
 					}
 				}
@@ -115,8 +106,6 @@ public class MessageReader implements Reader {
 			System.err.println("ERROR PROCESS");
 			return ProcessStatus.ERROR;
 		}
-		// System.out.println("~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~");
-		// bb.compact();
 		return ProcessStatus.REFILL;
 	}
 
@@ -173,7 +162,8 @@ public class MessageReader implements Reader {
 		case FILE_REQUEST:
 			username = bp.getField("username");
 			data = bp.getField("file");
-			return new MessageTwoString(op, endFlag, username, data);
+			fileId = Integer.parseInt(bp.getField("fileId"));
+			return new MessageTwoStringOneInt(op, endFlag, username, data,fileId);
 
 		case FILE_OK:
 			username = bp.getField("username");
@@ -206,11 +196,11 @@ public class MessageReader implements Reader {
 			return new MessageOneString(op, endFlag, userReq);
 
 		case WHISP_REFUSED:
+			username = bp.getField("username");
 			userReq = bp.getField("userReq");
-			return new MessageOneString(op, endFlag, userReq);
+			return new MessageTwoString(op, endFlag, username, userReq);
 
 		case CHECK_PRIVATE:
-			System.out.println("token: " + bp.getField("token"));
 			token = Integer.parseInt(bp.getField("token"));
 			username = bp.getField("username");
 			return new MessageStringToken(op, endFlag, username, token);
@@ -222,7 +212,12 @@ public class MessageReader implements Reader {
 			token = Integer.parseInt(bp.getField("token"));
 			username = bp.getField("username");
 			return new MessageStringToken(op, endFlag, username, token);
-			
+		case FILE_REFUSED:
+			username = bp.getField("username");
+			data = bp.getField("file");
+			fileId = Integer.parseInt(bp.getField("fileId"));
+			return new MessageTwoStringOneInt(op, endFlag, username, data, fileId);
+
 		default:
 			return new MessageOpcode(op, endFlag);
 		}

@@ -50,6 +50,7 @@ public class HubClient {
 		clientMap.put(Opcode.FILE_SEND, this::receiveFile);
 		clientMap.put(Opcode.CHECK_FILE, this::checkfile);
 		clientMap.put(Opcode.FILE_REFUSED, this::fileRefused);
+		clientMap.put(Opcode.WHISP_REFUSED, this::whispRefused);
 	}
 
 	/**
@@ -107,7 +108,6 @@ public class HubClient {
 	 * @param ctc
 	 */
 	private void messageBroadcast(Message msg, ClientMatou client, ContextClient ctc) {
-		System.out.println("My token is: " + client.getToken());
 		MessageTwoString message = (MessageTwoString) msg;
 		Date date = new Date();
 		Calendar calendar = GregorianCalendar.getInstance();
@@ -127,12 +127,9 @@ public class HubClient {
 	private void receiveIpAddress(Message msg, ClientMatou client, ContextClient ctc) {
 		try {
 			MessageIp message = (MessageIp) msg;
-			System.out.println("message token from username: " + message.username + " - " + message.token
-					+ " to client token: " + client.getToken());
 			client.addAwaitingUsers(message.userReq, message.token);
 			SocketChannel newsc = SocketChannel.open();
 			String ip = ParserLine.formatIpBack(message.ip);
-			System.out.println("IP TO CONNECT TO :" + ip);
 			newsc.connect(new InetSocketAddress(ip, message.port));
 			newsc.configureBlocking(false);
 			
@@ -144,15 +141,13 @@ public class HubClient {
 			clientKey.attach(ct);
 			client.doConnect(clientKey);
 			client.addConnectedUsers(clientKey);
-			System.out.println("SETTING USERNAME: " + message.userReq);
-			System.out.println("QUEUING MESSAGE FOR PRIVATE");
 			ct.queueMessage(formatBuffer(newsc,
 					"username: " + client.username + "\r\ntoken: "
 							+ client.getPendingConnectionToken(message.userReq).orElse(-1).toString(),
 					Opcode.CHECK_PRIVATE.op));
 			
-			//TODO Faire la deuxieme socketChannel
-			
+
+			// File SocketChannel
 			SocketChannel scFile = SocketChannel.open();
 			scFile.connect(new InetSocketAddress(ip,message.port));
 			scFile.configureBlocking(false);
@@ -165,14 +160,8 @@ public class HubClient {
 					"username: " + client.username + "\r\ntoken: "
 							+ client.getPendingConnectionToken(message.userReq).orElse(-1).toString(),
 					Opcode.CHECK_FILE.op));
-			System.out.println("Adding Filecontext : " + message.userReq);
 			client.addFileContext(message.userReq, ctFile);
-			
-			//TODO add to Filemap
-			
-			
-			
-			
+
 			
 		} catch (IOException e) {
 			System.err.println("IOException!!");
@@ -188,7 +177,6 @@ public class HubClient {
 	private void checkPrivate(Message msg, ClientMatou client, ContextClient ctc) {
 		MessageStringToken message = (MessageStringToken) msg;
 		int token = message.token;
-		System.out.println("checking private, token: " + token);
 		if (client.getPendingConnectionToken(message.username).orElse(-1) != token) {
 			ctc.silentlyClose();
 		}
@@ -197,7 +185,7 @@ public class HubClient {
 		if (newUsername != null) {
 			ctc.setUserName(newUsername);
 		}
-		System.out.println("Message.username = " + message.username);
+		System.out.println(message.username + " s'est connecté");
 		client.addConnectedUsers(ctc.getSelectionKey());
 		client.addUsernameContext(newUsername, ctc.getSelectionKey());
 		//client.removePendingConnectionToken(message.username);
@@ -238,8 +226,6 @@ public class HubClient {
 		System.out.println(ColorText.colorize(ColorText.GREEN, message.str)
 				+ " wants to communicate with you, to authorize requests, type /y " + message.str);
 		client.addAwaitingUsers(message.str);
-		// System.out.println("add username : " + bp.getField("username"));
-
 	}
 	
 	/**
@@ -283,13 +269,12 @@ public class HubClient {
 	 * @param ctc
 	 */
 	private void sendFileRequest(Message msg, ClientMatou client, ContextClient ctc) {
-		MessageTwoString message = (MessageTwoString) msg;
+		MessageTwoStringOneInt message = (MessageTwoStringOneInt) msg;
 		System.out.println(ColorText.colorize(ColorText.GREEN, message.str1) + " wants to send you a file named: "
 				+ message.str2 + ", to authorize the file, type /o " + message.str1 + " " + message.str2);
 
 		// Get a random number for file ID 
-		int fileId = client.generateToken();
-		client.addAwaitingFileUser(message.str1, message.str2, fileId);
+		client.addAwaitingFileUser(message.str1, message.str2, message.integer);
 	}
 	
 	
@@ -302,9 +287,6 @@ public class HubClient {
 	 */
 	private void acceptedFileRequest(Message msg, ClientMatou client, ContextClient msgContext) {
 		MessageTwoStringOneInt message = (MessageTwoStringOneInt) msg;
-		//System.out.println("Sending file : " + message.str2 + " to " + message.str1);
-		// System.out.println("Use /f " + message.str + "path/to/your/file to send a
-		// file to " + message.str);
 		ContextClient ctc = client.getContextFileFromUsername(message.str1);
 		if (ctc == null) {
 			return;
@@ -338,10 +320,7 @@ public class HubClient {
 
 				}
 			}
-			//buffer.flip();
-			//System.out.println(UTF8.decode(buffer).toString());
 		} catch (IOException e) {
-			System.out.println(e.toString());
 			System.err.println("Erreur dans la lecture, envoi annulé.");
 		}
 
@@ -369,7 +348,7 @@ public class HubClient {
 			
 			fc.write(message.buffer);
 			if (message.endFlag == (byte)1) {
-				System.out.println("File received !");
+				System.out.println("File " + stringPath + " received !");
 				//TODO remove and check file size
 				//client.removeFile(message.fileId);
 			}
@@ -381,9 +360,27 @@ public class HubClient {
 			
 		}
 	
+	/**
+	 * Process file Refused message
+	 * @param msg
+	 * @param client
+	 * @param ctc
+	 */
 	private void fileRefused(Message msg, ClientMatou client, ContextClient ctc) {
-		System.out.println("File tranfert refused");
+		MessageTwoStringOneInt message = (MessageTwoStringOneInt) msg;
+		client.removeFile(message.integer);
+		System.out.println("File tranfert for " + message.str2 + " refused");
 	}
-		
+	
+	/**
+	 * Process Whisp Refused
+	 * @param msg
+	 * @param client
+	 * @param ctc
+	 */
+	private void whispRefused(Message msg, ClientMatou client, ContextClient ctc) {
+		MessageTwoString message = (MessageTwoString) msg;
+		System.out.println(message.str1 + " refused");
+	}
 	
 }

@@ -21,7 +21,7 @@ public class ParserLine {
 	public String additionalInfo = null;
 	public String additionalInfo2 = null;
 	public String file = null;
-	
+
 	private ParserLine(Opcode opcode, String line) {
 		this.opcode = opcode;
 		this.line = line;
@@ -31,30 +31,34 @@ public class ParserLine {
 		this(opcode, line);
 		this.additionalInfo = additionalInfo;
 	}
-	
+
 	private ParserLine(Opcode opcode, String line, String additionalInfo, String additionalInfo2) {
 		this(opcode, line, additionalInfo);
 		this.additionalInfo2 = additionalInfo2;
 	}
-	
+
 	/**
 	 * Takes a formatted ip as a parameter and returns the final ip used to connect.
+	 * 
 	 * @param ip
 	 * @return the formatted ip
 	 */
 	public static String formatIpBack(String ip) {
-		// pas besoin de faire quoi que ce soit en java les ipv4 et ipv6 sont directement support�es.
+		// pas besoin de faire quoi que ce soit en java les ipv4 et ipv6 sont
+		// directement support�es.
 		// dans un autre langage il aurait fallu effectuer un traitement.
 		ip = ip.replace("6-", "");
 		ip = ip.replace("4-", "");
 		return ip;
 	}
-	
+
 	/**
-	 * This method is used to go further than just localhost, that way you're able to get the real ip address
-	 * of your client and send it to a server. It means that the client and the server would work even if you're
-	 * not trying it locally.
-	 * It also adds whether the IP is an IPv6 or IPv4 so that the client is able to use the IP.
+	 * This method is used to go further than just localhost, that way you're able
+	 * to get the real ip address of your client and send it to a server. It means
+	 * that the client and the server would work even if you're not trying it
+	 * locally. It also adds whether the IP is an IPv6 or IPv4 so that the client is
+	 * able to use the IP.
+	 * 
 	 * @param ip
 	 * @return formatted ip.
 	 */
@@ -63,35 +67,37 @@ public class ParserLine {
 		String ret = "";
 		try {
 			Enumeration<NetworkInterface> e = NetworkInterface.getNetworkInterfaces();
-			while(e.hasMoreElements())
-			{
-			    NetworkInterface n = (NetworkInterface) e.nextElement();
-			    Enumeration<InetAddress> ee = n.getInetAddresses();
-			    while (ee.hasMoreElements())
-			    {
-			        InetAddress i = ee.nextElement();
-			        if (!i.isAnyLocalAddress() && !i.isLinkLocalAddress() && !i.isLoopbackAddress() && !i.isMulticastAddress()) {
-			        	if(i instanceof Inet6Address){
-			                ret = "6-";
-			            } else if (i instanceof Inet4Address) {
-			                ret = "4-";
-			            }
-			        	ret += i.getHostAddress();
-			        	return ret;
-			        }
-			    }
+			while (e.hasMoreElements()) {
+				NetworkInterface n = (NetworkInterface) e.nextElement();
+				Enumeration<InetAddress> ee = n.getInetAddresses();
+				while (ee.hasMoreElements()) {
+					InetAddress i = ee.nextElement();
+					if (!i.isAnyLocalAddress() && !i.isLinkLocalAddress() && !i.isLoopbackAddress()
+							&& !i.isMulticastAddress()) {
+						if (i instanceof Inet6Address) {
+							ret = "6-";
+						} else if (i instanceof Inet4Address) {
+							ret = "4-";
+						}
+						ret += i.getHostAddress();
+						return ret;
+					}
+				}
 			}
 		} catch (SocketException e) {
 			System.err.println("Socket Exception!");
 		}
 		return host;
 	}
-	
+
 	/**
-	 * Takes the line that the client wrote and parse it to determine what action he wanted to do.
+	 * Takes the line that the client wrote and parse it to determine what action he
+	 * wanted to do.
+	 * 
 	 * @param rawline
 	 * @param client
-	 * @return a ParserLine object containing additional infos, opcodes and everything needed.
+	 * @return a ParserLine object containing additional infos, opcodes and
+	 *         everything needed.
 	 */
 	public static ParserLine parse(String rawline, ClientMatou client) {
 		rawline = EscapeCharacter.escapeJava(rawline); // METHODE APACHE
@@ -103,8 +109,6 @@ public class ParserLine {
 		Opcode opcode = Opcode.MESSAGE;
 		String[] words;
 
-		// change with hashmap like hubclient
-		// System.out.println("line:["+ line + "]");
 		if (line.equals("/r")) {
 			opcode = Opcode.REQUEST;
 			return new ParserLine(opcode, "userReq: " + trimline.substring(2).trim() + "\r\n");
@@ -114,9 +118,8 @@ public class ParserLine {
 			if (words.length < 3) {
 				return new ParserLine(Opcode.ERROR, "");
 			}
-			return new ParserLine(opcode,
-					"data: " + trimline.substring(words[1].length() + 3).trim() + "\r\n" + "username: " + client.username,
-					words[1]);
+			return new ParserLine(opcode, "data: " + trimline.substring(words[1].length() + 3).trim() + "\r\n"
+					+ "username: " + client.username, words[1]);
 		} else if (line.equals("/f")) {
 			opcode = Opcode.FILE_REQUEST;
 			words = rawline.split("\\s+");
@@ -126,21 +129,20 @@ public class ParserLine {
 			if (!FileInfo.checkFileExist(words[2])) {
 				return new ParserLine(Opcode.ERROR, "");
 			}
-			return new ParserLine(opcode, "username: " + client.username + "\r\n" + "file: " + words[2] + "\r\n", words[1]);
-		}
-		else if (line.equals("/o")) {
+			int fileId = client.generateToken();
+			return new ParserLine(opcode, "username: " + client.username + "\r\n" + "file: " + words[2] + "\r\n"
+					+ "fileId: " + fileId + "\r\n", words[1]);
+		} else if (line.equals("/o")) {
 			opcode = Opcode.FILE_OK;
 			words = rawline.split("\\s+");
 			if (words.length != 3) {
 				return new ParserLine(Opcode.ERROR, "");
 			}
-			System.out.println(words[2]);
 			Optional<Integer> fileId = client.getIdFromFileName(words[2]);
 			if (fileId.isPresent()) {
-				return new ParserLine(opcode, "username: " + client.username + "\r\n" + "file: " + words[2] + "\r\n" + "fileId: " + fileId.get() + "\r\n", words[1]);
-			}
-			else {
-				System.out.println("File not accepted");
+				return new ParserLine(opcode, "username: " + client.username + "\r\n" + "file: " + words[2] + "\r\n"
+						+ "fileId: " + fileId.get() + "\r\n", words[1]);
+			} else {
 				return new ParserLine(Opcode.ERROR, "");
 			}
 		} else if (line.equals("/y")) {
@@ -155,14 +157,42 @@ public class ParserLine {
 			try {
 				return new ParserLine(opcode,
 						"username: " + words[1] + "\r\n" + "userReq: " + client.username + "\r\n" + "ip: "
-								+ formatIp(InetAddress.getLocalHost()) + "\r\n" + "port: " + client.getPort() + "\r\n" + "token: "
-								+ token.get() + "\r\n");
+								+ formatIp(InetAddress.getLocalHost()) + "\r\n" + "port: " + client.getPort() + "\r\n"
+								+ "token: " + token.get() + "\r\n");
 			} catch (UnknownHostException e) {
 				return new ParserLine(Opcode.ERROR, "");
+			}
+		} else if (line.equals("/n")) {
+			opcode = Opcode.FILE_REFUSED;
+			words = rawline.split("\\s+");
+			if (!(words.length == 3 || words.length == 2)) {
+				return new ParserLine(Opcode.ERROR, "");
+			}
+			if (words.length == 3) {
+				Optional<Integer> fileId = client.getIdFromFileName(words[2]);
+				if (fileId.isPresent()) {
+					client.removeFile(fileId.get());
+					return new ParserLine(opcode, "username: " + client.username + "\r\n" + "file: " + words[2] + "\r\n"
+							+ "fileId: " + fileId.get() + "\r\n", words[1]);
+				} else {
+					return new ParserLine(Opcode.ERROR, "");
+				}
+
+			}
+			else {
+				opcode = Opcode.WHISP_REFUSED;
+				words = rawline.split("\\s+");
+				if (words.length != 2) {
+					return new ParserLine(Opcode.ERROR, "");
+				}
+				Optional<Integer> token = client.getPendingConnectionToken(words[1]);
+				if (!token.isPresent()) {
+					return new ParserLine(Opcode.ERROR, "");
+				}
+				return new ParserLine(opcode,"username: " + words[1] + "\r\n" + "userReq: " + client.username + "\r\n");
 			}
 		} else
 			return new ParserLine(opcode, "data: " + rawline + "\r\n");
 	}
-	
-	
+
 }

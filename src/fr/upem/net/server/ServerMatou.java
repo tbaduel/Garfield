@@ -25,6 +25,7 @@ import java.util.logging.Logger;
 import fr.upem.net.message.Message;
 import fr.upem.net.message.MessageIp;
 import fr.upem.net.message.MessageOneString;
+import fr.upem.net.message.MessageTwoString;
 import fr.upem.net.other.Opcode;
 import fr.upem.net.reader.MessageReader;
 import fr.upem.net.reader.Reader.ProcessStatus;
@@ -39,7 +40,7 @@ public class ServerMatou {
 		final private ByteBuffer bbout = ByteBuffer.allocate(BUFFER_SIZE);
 		final private Queue<ByteBuffer> queue = new LinkedList<>();
 		final private ServerMatou server;
-	
+
 		private boolean closed = false;
 		private Opcode opcodeAction;
 		public String username; // added for whisper
@@ -50,17 +51,16 @@ public class ServerMatou {
 			this.key = key;
 			this.sc = (SocketChannel) key.channel();
 			this.server = server;
-			
+
 		}
-		
-		
-		
+
 		/**
 		 * Set the username of a client
+		 * 
 		 * @param username
 		 */
 		public void setUserName(String username) {
-			//added for whisper
+			// added for whisper
 			this.username = username;
 		}
 
@@ -75,58 +75,46 @@ public class ServerMatou {
 		 */
 		private void processIn() throws IOException {
 			bbin.flip();
-			System.out.println("BBIN :  " + bbin);
 			ProcessStatus ps = messageReader.process();
-			System.out.println(ps);
 			if (ps == ProcessStatus.DONE) {
 				Message msg = messageReader.get();
 				// ByteBuffer toSend = msg.toByteBuffer();
 				ByteBuffer toSend = messageProcessing(msg);
-				System.out.println(msg);
-				System.out.println(toSend);
-				System.out.println("BBIN :  " + bbin);
 				if (toSend != null) {
-					// toSend.flip();
-					System.out.println(toSend);
 					int msgOpcode = msg.getOp();
 					if (msgOpcode == Opcode.MESSAGE.op) { // Broadcast case
 						server.broadcast(toSend);
-						
-					}else if (msgOpcode == Opcode.REQUEST.op) {
-						//TODO
-						System.out.println("Request : opcode = " + opcodeAction);
-						//toSend.position(0);
-						
+
+					} else if (msgOpcode == Opcode.REQUEST.op) {
 						if (opcodeAction == Opcode.WHISP_REQUEST) {
 							MessageOneString message = (MessageOneString) msg;
 							Context contextDest = server.getContextFromIP(server.getKeyFromMap(message.str));
-							System.out.println(contextDest.sc.getRemoteAddress().toString());
 							contextDest.queueMessage(toSend);
-						}
-						else if (opcodeAction == Opcode.WHISP_ERR) {
+						} else if (opcodeAction == Opcode.WHISP_ERR) {
 							queueMessage(toSend);
 						}
 						opcodeAction = null;
-						
-						
-					}
-					else if (msgOpcode == Opcode.WHISP_OK.op){
-						MessageIp message = (MessageIp) msg;
-						Context contextDest = server.getContextFromIP(server.getKeyFromMap(message.username));
+					} else if (msgOpcode == Opcode.WHISP_OK.op) {
+						if (opcodeAction == Opcode.WHISP_ERR) {
+							queueMessage(toSend);
+							opcodeAction = null;
+						} else {
+							MessageIp message = (MessageIp) msg;
+							Context contextDest = server.getContextFromIP(server.getKeyFromMap(message.username));
+							contextDest.queueMessage(toSend);
+						}
+					} else if (msgOpcode == Opcode.WHISP_REFUSED.op) {
+						MessageTwoString message = (MessageTwoString) msg;
+						Context contextDest = server.getContextFromIP(server.getKeyFromMap(message.str1));
 						contextDest.queueMessage(toSend);
-					}
-					else {				
-						System.out.println("Sending to client ...");
+					} else {
 						queueMessage(toSend);
 					}
 					messageReader.reset();
 					bbin.compact();
 				}
-			} else {
-				System.out.println("not done");
 			}
 
-			System.out.println("Endremaining = " + bbin.remaining());
 		}
 
 		/**
@@ -147,7 +135,7 @@ public class ServerMatou {
 
 		/**
 		 * Add a message to the message queue, tries to fill bbOut and updateInterestOps
-		 *	The message is a ByteBuffer in write mode
+		 * The message is a ByteBuffer in write mode
 		 *
 		 * @param msg
 		 */
@@ -163,9 +151,7 @@ public class ServerMatou {
 		 */
 		private void processOut() {
 			while (bbout.remaining() >= Integer.BYTES && queue.size() > 0) {
-				System.out.println("remaining bbout " + bbout.remaining());
 				ByteBuffer a = queue.poll();
-				System.out.println("add : " + a);
 				a.flip();
 				bbout.put(a);
 			}
@@ -194,11 +180,10 @@ public class ServerMatou {
 				key.interestOps(newInterestOps);
 
 		}
-		
-		
+
 		/**
-		 * Close the socketChannel to the current Context.
-		 * Note that it remove the connection from the server map connection
+		 * Close the socketChannel to the current Context. Note that it remove the
+		 * connection from the server map connection
 		 */
 		private void silentlyClose() {
 			try {
@@ -219,12 +204,10 @@ public class ServerMatou {
 		 * @throws IOException
 		 */
 		private void doRead() throws IOException {
-			int read;
-			if ((read = sc.read(bbin)) == -1) {
+			if (sc.read(bbin) == -1) {
 				logger.info("closing");
 				closed = true;
 			}
-			System.out.println("--------------\n jai lu " + read + "bytes");
 			processIn();
 			updateInterestOps();
 		}
@@ -239,26 +222,24 @@ public class ServerMatou {
 		 */
 		private void doWrite() throws IOException {
 			bbout.flip();
-			System.out.println("ID to send = " + bbout.getInt());
-			bbout.position(0);
-			System.out.println("Avant envoie : " + bbout);
-			System.out.println("WRITING " + sc.write(bbout));
+
+			sc.write(bbout);
 			bbout.compact();
-			System.out.println("Il reste a envoyer " + bbout);
 			updateInterestOps();
 		}
 
 	}
-	
+
 	/**
 	 * Get the Context corresponding to the ip
+	 * 
 	 * @param ip
 	 * @return The context
 	 */
 	public Context getContextFromIP(SocketAddress ip) {
 		for (SelectionKey key : selector.keys()) {
 			SelectableChannel channel = key.channel();
-			if(!(channel instanceof ServerSocketChannel)) {
+			if (!(channel instanceof ServerSocketChannel)) {
 				SocketChannel sc = (SocketChannel) channel;
 				try {
 					if (sc.getRemoteAddress().equals(ip)) {
@@ -267,13 +248,11 @@ public class ServerMatou {
 				} catch (IOException e) {
 					return null;
 				}
-				
+
 			}
 		}
 		return null;
 	}
-	
-	
 
 	/**
 	 * Add a message to all connected clients queue
@@ -281,14 +260,10 @@ public class ServerMatou {
 	 * @param msg
 	 */
 	private void broadcast(ByteBuffer msg) {
-		System.out.println("BROADCASTING ...");
 		if (msg == null)
 			return;
-		System.out.println("\n\t SIZE = " + selector.keys().size());
 		for (SelectionKey key : selector.keys()) {
-			System.out.println("une key");
 			if (key.isValid() && !key.isAcceptable()) {
-				System.out.println("Ajout");
 				((Context) key.attachment()).queueMessage(msg.duplicate());
 			}
 		}
@@ -297,7 +272,7 @@ public class ServerMatou {
 
 	static private int BUFFER_SIZE = 1_024;
 	static private Logger logger = Logger.getLogger(ServerMatou.class.getName());
-	//TODO
+	// TODO
 	private final ServerSocketChannel serverSocketChannel;
 	private final Selector selector;
 	private final Set<SelectionKey> selectedKeys;
@@ -307,8 +282,7 @@ public class ServerMatou {
 	final BlockingQueue<String> consoleQueue;
 	private Thread console;
 
-
-	//private final static Charset UTF8 = Charset.forName("utf-8");
+	// private final static Charset UTF8 = Charset.forName("utf-8");
 
 	public ServerMatou(int port) throws IOException {
 		serverSocketChannel = ServerSocketChannel.open();
@@ -319,15 +293,16 @@ public class ServerMatou {
 		userMap = new HashMap<>();
 		consoleQueue = new LinkedBlockingQueue<>();
 		pendingConnection = new HashMap<>();
-		
+
 	}
-	
+
 	/**
 	 * Get address corresponding to a username
+	 * 
 	 * @param username
 	 * @return the SocketAddress of client's username
 	 */
-	private SocketAddress getKeyFromMap( String username) {
+	private SocketAddress getKeyFromMap(String username) {
 		Collection<SocketAddress> keys = map.keySet();
 		for (SocketAddress address : keys) {
 			if (map.get(address).equals(username)) {
@@ -336,9 +311,10 @@ public class ServerMatou {
 		}
 		return null;
 	}
-	
+
 	/**
 	 * Start the server
+	 * 
 	 * @throws IOException
 	 */
 	public void launch() throws IOException {
@@ -347,16 +323,16 @@ public class ServerMatou {
 		Set<SelectionKey> selectedKeys = selector.selectedKeys();
 		while (!Thread.interrupted()) {
 			printKeys();
-			System.out.println("Starting select");
+			// System.out.println("Starting select");
 			selector.select();
-			System.out.println("Select finished");
+			// System.out.println("Select finished");
 			executeCommand();
 			printSelectedKey();
 			processSelectedKeys();
 			selectedKeys.clear();
 		}
 	}
-	
+
 	/**
 	 * Execute a command
 	 */
@@ -369,8 +345,8 @@ public class ServerMatou {
 			case "SHUTDOWN":
 				System.out.println("Shutdown...");
 				shutdown();
-				//console.interrupt();
-				//Thread.currentThread().interrupt();
+				// console.interrupt();
+				// Thread.currentThread().interrupt();
 				break;
 			case "SHUTDOWNNOW":
 				System.out.println("ShutDown NOW !");
@@ -383,9 +359,10 @@ public class ServerMatou {
 			}
 		}
 	}
-	
+
 	/**
 	 * Get the number of active client
+	 * 
 	 * @return the number of active clients
 	 */
 	public int infoActive() {
@@ -398,12 +375,12 @@ public class ServerMatou {
 		}
 		return cpt;
 	}
-	
+
 	/**
 	 * Shutdown the server, disconnect every user
 	 */
 	private void shutdownNow() {
-		//TODO
+		// TODO
 		boolean done = false;
 		while (!done) {
 			done = true;
@@ -414,13 +391,13 @@ public class ServerMatou {
 						done = false;
 						logger.info("Disconnect client");
 						((Context) key.attachment()).silentlyClose();
-						System.out.println(((Context) key.attachment()).sc.isConnected());
+						// System.out.println(((Context) key.attachment()).sc.isConnected());
 					}
 				}
 			}
 		}
 	}
-	
+
 	/**
 	 * Close the ServerSocketChannel
 	 */
@@ -443,7 +420,7 @@ public class ServerMatou {
 			}
 			try {
 				if (!key.isValid() && key.attachment() != null) {
-					System.out.println("Remove" + ((Context) key.attachment()).sc.getRemoteAddress() );
+					System.out.println("Remove" + ((Context) key.attachment()).sc.getRemoteAddress());
 					map.remove(((Context) key.attachment()).sc.getRemoteAddress());
 				}
 				if (key.isValid() && key.isWritable()) {
@@ -575,9 +552,10 @@ public class ServerMatou {
 			list.add("WRITE");
 		return String.join(" and ", list);
 	}
-	
+
 	/**
 	 * Need to be run in a thread. Get the command from System.In and execute them.
+	 * 
 	 * @param server
 	 */
 	private static void consoleRunner(ServerMatou server) {
@@ -586,7 +564,6 @@ public class ServerMatou {
 			while (!Thread.interrupted() && !command.equals("SHUTDOWNNOW")) {
 				if (scan.hasNextLine()) {
 					command = scan.nextLine();
-					System.out.println("Command = " + command);
 					server.consoleQueue.put(command);
 					server.selector.wakeup();
 				}

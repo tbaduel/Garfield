@@ -67,13 +67,11 @@ public class HubServ {
 	private ByteBuffer signup(Message msg, ServerMatou server, SocketChannel sc) {
 		MessageTwoString message = (MessageTwoString) msg;
 		ByteBuffer bb = ByteBuffer.allocate(BUFFER_SIZE);
-		System.out.println("Signin...");
 		String name = message.str1;
 		if (server.map.containsValue(name)) { // Username already used
 			bb.putInt(Opcode.SIGNUP_ERR.op);
 		} else { // Username not used
 			bb.putInt(Opcode.SIGNUP_OK.op);
-			//System.out.println("ADDED: " + Opcode.SIGNUP_OK);
 			try {
 				server.map.put(sc.getRemoteAddress(), name);
 			} catch (IOException e) {
@@ -96,17 +94,12 @@ public class HubServ {
 	private ByteBuffer login(Message msg, ServerMatou server, SocketChannel sc) {
 		MessageTwoString message = (MessageTwoString) msg;
 		ByteBuffer bb = ByteBuffer.allocate(BUFFER_SIZE);
-		System.out.println("Login...");
 		String name = message.str1;
 		String password = message.str2;
-		//System.out.println("name: " + name);
-		//System.out.println("pwd: " + password);
-		//System.out.println(server.userMap.get(name));
 		if (server.userMap.containsKey(name)) { // Username exists
 			if (server.userMap.get(name).equals(password)) {
 				try {
 					if (server.map.containsValue(name)) {
-						System.out.println(" *******  ALREADY LOGGED ********");
 						bb.putInt(Opcode.LOGIN_ERR.op);
 					} else {
 						server.map.remove(getKey(server, name));
@@ -151,7 +144,6 @@ public class HubServ {
 		ByteBuffer headerToSend = ByteBuffer.allocate(Byte.BYTES + Integer.BYTES);
 		bb.putInt(Opcode.MESSAGEBROADCAST.op);
 		ByteBuffer bodyToSend = ByteBuffer.allocate(BUFFER_SIZE);
-		System.out.println("Sending : " + name +" : " + message.str);
 		// add content to body's buffer
 		bodyToSend.put(UTF8.encode(name));
 		bodyToSend.put(UTF8.encode("data: " + message.str));
@@ -222,17 +214,12 @@ public class HubServ {
 					String requester = server.map.get(sc.getRemoteAddress());
 					ByteBuffer bodyToSend = UTF8.encode("username: " + requester + "\r\n");
 					bb = createMessage(Opcode.WHISP_REQUEST,(byte)1, bodyToSend);
-					System.out.println("\t\t<=============================>");
-					System.out.println("This user: " + requester + " wants to talk to " + name);
 					Set<String> pendingForUser = server.pendingConnection.get(name);
 					if (pendingForUser == null) {
 						pendingForUser = new HashSet<String>();
 					}
 					pendingForUser.add(requester);
-					System.out.println("User list:");
-					System.out.println(pendingForUser);
 					server.pendingConnection.put(name, pendingForUser);
-					System.out.println("add user to server");
 					
 				} catch (IOException e) {
 					return null;
@@ -256,13 +243,10 @@ public class HubServ {
 		String username = message.username;
 		String userReq = message.userReq;
 		String ip = ParserLine.formatIpBack(message.ip);
-		System.out.println("\t\t<=============================>");
-		System.out.println("This user: " + userReq + " accepted " + username);
 		Set<String> validation = server.pendingConnection.get(userReq);
 		if (validation != null && validation.contains(username)) {
 			int port = message.port;
 			int token = message.token;
-			//System.out.println(msg.getBody());
 			String strToSend = "username: " + username + "\r\n" 
 					+ "userReq: " + userReq + "\r\n"
 					+ "ip: " + ip + "\r\n" 
@@ -271,7 +255,8 @@ public class HubServ {
 			ByteBuffer body = UTF8.encode(strToSend);
 			return createMessage(Opcode.IPRESPONSE,(byte)1 ,body );
 		}
-		return createMessage(Opcode.WHISP_REFUSED,(byte)1, UTF8.encode("username: " + message.userReq));
+		opcodeAction = Opcode.WHISP_ERR;
+		return createMessage(Opcode.WHISP_ERR,(byte)1, UTF8.encode("userReq: " + message.userReq));
 	}
 	
 	/**
@@ -282,9 +267,13 @@ public class HubServ {
 	 * @return the ByteBuffer of the message to send
 	 */
 	private ByteBuffer whispRefused(Message msg, ServerMatou server, SocketChannel sc) {
-		MessageOneString message = (MessageOneString) msg;
-		return createMessage(Opcode.WHISP_REFUSED,(byte)1, UTF8.encode("username: " + message.str));
-		
+		MessageTwoString message = (MessageTwoString) msg;
+		Set<String> set = server.pendingConnection.get(message.str2);
+		if (set != null) {
+			set.remove(message.str1);
+		}
+		return createMessage(Opcode.WHISP_REFUSED,(byte)1, UTF8.encode("username: "+ message.str1 + "\r\n" +
+				"userReq: " + message.str1 + "\r\n"));
 	}
 
 	/**
