@@ -15,7 +15,6 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.Optional;
-import java.util.Random;
 
 import fr.upem.net.client.ClientMatou.ContextClient;
 import fr.upem.net.message.Message;
@@ -214,7 +213,6 @@ public class HubClient {
 	private void checkfile(Message msg, ClientMatou client, ContextClient ctc) {
 		MessageStringToken message = (MessageStringToken)msg;
 		int token = message.token;
-		System.out.println("Checking file");
 		if (client.getPendingConnectionToken(message.username).orElse(-1) != token) {
 			System.out.println("Wrong connection, closing ...");
 			ctc.silentlyClose();
@@ -224,7 +222,6 @@ public class HubClient {
 		if (newUsername != null) {
 			ctc.setUserName(newUsername + "_file");
 		}
-		System.out.println("Adding Filecontext : " + newUsername);
 		client.addConnectedUsers(ctc.getSelectionKey());
 		client.addFileContext(newUsername, ctc);
 		//client.removePendingConnectionToken(message.username);
@@ -287,12 +284,11 @@ public class HubClient {
 	 */
 	private void sendFileRequest(Message msg, ClientMatou client, ContextClient ctc) {
 		MessageTwoString message = (MessageTwoString) msg;
-		Random r = new Random();
 		System.out.println(ColorText.colorize(ColorText.GREEN, message.str1) + " wants to send you a file named: "
 				+ message.str2 + ", to authorize the file, type /o " + message.str1 + " " + message.str2);
 
 		// Get a random number for file ID 
-		int fileId = r.nextInt();
+		int fileId = client.generateToken();
 		client.addAwaitingFileUser(message.str1, message.str2, fileId);
 	}
 	
@@ -306,17 +302,16 @@ public class HubClient {
 	 */
 	private void acceptedFileRequest(Message msg, ClientMatou client, ContextClient msgContext) {
 		MessageTwoStringOneInt message = (MessageTwoStringOneInt) msg;
-		System.out.println("Sending file : " + message.str2 + " to " + message.str1);
+		//System.out.println("Sending file : " + message.str2 + " to " + message.str1);
 		// System.out.println("Use /f " + message.str + "path/to/your/file to send a
 		// file to " + message.str);
-		System.out.println("Need to get the fileContext of : " + message.str1);
 		ContextClient ctc = client.getContextFileFromUsername(message.str1);
 		if (ctc == null) {
 			return;
 		}
 		client.addAuthorizedToSendFile(ctc.getSelectionKey());
 		Path path = Paths.get(message.str2);
-		System.out.println(path.toString());
+		
 		try (FileChannel fc = FileChannel.open(path, StandardOpenOption.READ)) {
 			int size = (int) fc.size();
 			int fileId = message.integer;
@@ -324,7 +319,6 @@ public class HubClient {
 			ByteBuffer buffer = ByteBuffer.allocate(494);
 			// while (fc.read(buffer) > 0 && buffer.hasRemaining()) {
 			while (fc.position() < size) {
-				System.out.println("pos = " + fc.position() + ", size = " + size);
 				if (buffer.remaining() < size - fc.position()) {
 					readed = fc.read(buffer);
 					if (readed != -1) {
@@ -334,7 +328,7 @@ public class HubClient {
 					buffer.clear();
 
 				} else {
-					System.out.println("Last send");
+					
 					readed = fc.read(buffer);
 					if (readed != -1) {
 						buffer.flip();
@@ -360,14 +354,14 @@ public class HubClient {
 	 * @param ctc
 	 */
 	private void receiveFile(Message msg, ClientMatou client, ContextClient ctc) {
-		System.out.println("Receiving file ...");
+		
 		MessageFile message = (MessageFile)msg;
 		Optional<String> OptionalstringPath = client.getFileFromId(message.fileId);
 		if (!OptionalstringPath.isPresent()) {
 			return;
 		}
 		String stringPath = OptionalstringPath.get();
-		System.out.println(stringPath);
+		
 		try(FileChannel fc = FileChannel.open(Paths.get(stringPath), 
 				StandardOpenOption.CREATE,
 				StandardOpenOption.WRITE,
