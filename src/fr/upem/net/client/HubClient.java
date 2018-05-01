@@ -14,6 +14,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
+import java.util.Optional;
 import java.util.Random;
 
 import fr.upem.net.client.ClientMatou.ContextClient;
@@ -49,6 +50,7 @@ public class HubClient {
 		clientMap.put(Opcode.FILE_OK, this::acceptedFileRequest);
 		clientMap.put(Opcode.FILE_SEND, this::receiveFile);
 		clientMap.put(Opcode.CHECK_FILE, this::checkfile);
+		clientMap.put(Opcode.FILE_REFUSED, this::fileRefused);
 	}
 
 	/**
@@ -360,7 +362,11 @@ public class HubClient {
 	private void receiveFile(Message msg, ClientMatou client, ContextClient ctc) {
 		System.out.println("Receiving file ...");
 		MessageFile message = (MessageFile)msg;
-		String stringPath = client.getFileFromId(message.fileId);
+		Optional<String> OptionalstringPath = client.getFileFromId(message.fileId);
+		if (!OptionalstringPath.isPresent()) {
+			return;
+		}
+		String stringPath = OptionalstringPath.get();
 		System.out.println(stringPath);
 		try(FileChannel fc = FileChannel.open(Paths.get(stringPath), 
 				StandardOpenOption.CREATE,
@@ -380,6 +386,10 @@ public class HubClient {
 			}
 			
 		}
+	
+	private void fileRefused(Message msg, ClientMatou client, ContextClient ctc) {
+		System.out.println("File tranfert refused");
+	}
 		
 	
 }

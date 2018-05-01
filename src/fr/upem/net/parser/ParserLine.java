@@ -1,5 +1,6 @@
 package fr.upem.net.parser;
 
+import java.io.IOException;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
@@ -7,6 +8,9 @@ import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.Enumeration;
 import java.util.Optional;
 
@@ -123,6 +127,9 @@ public class ParserLine {
 			if (words.length != 3) {
 				return new ParserLine(Opcode.ERROR, "");
 			}
+			if (!checkFileExist(words[2])) {
+				return new ParserLine(Opcode.ERROR, "");
+			}
 			return new ParserLine(opcode, "username: " + client.username + "\r\n" + "file: " + words[2] + "\r\n", words[1]);
 		}
 		else if (line.equals("/o")) {
@@ -159,5 +166,20 @@ public class ParserLine {
 			}
 		} else
 			return new ParserLine(opcode, "data: " + rawline + "\r\n");
+	}
+	
+	
+	private static boolean checkFileExist(String stringPath) {
+		int maxFileSize = 50_000_000;
+		try(FileChannel fc = FileChannel.open(Paths.get(stringPath), StandardOpenOption.READ)){
+			long size = fc.size();
+			if (size > maxFileSize) {
+				System.out.println("Max file size = " + maxFileSize);
+				return false;
+			}
+			return true;
+		} catch (IOException e) {
+			return false;
+		}
 	}
 }

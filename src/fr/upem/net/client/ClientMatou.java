@@ -403,8 +403,13 @@ public class ClientMatou {
 	 * @param fileId the id of the file
 	 * @return the name of the file
 	 */
-	public String getFileFromId(int fileId) {
-		return idFileMap.get(fileId);
+	public Optional<String> getFileFromId(int fileId) {
+		
+		String filename = idFileMap.get(fileId);
+		if (filename != null) {
+			return Optional.of(filename);
+		}
+		return Optional.empty();
 	}
 
 	/**
@@ -642,7 +647,7 @@ public class ClientMatou {
 				// if (parser.opcode == Opcode.FILE_OK) {
 				// addAuthorizedToSendFile(getNameInKeys(parser.additionalInfo));
 				// }
-				if (parser.opcode == Opcode.ERROR) {
+				if (parser.opcode == Opcode.ERROR && req.capacity() <= BUFFER_SIZE) {
 					System.out.println("Erreur de saisie");
 				} else if (parser.opcode == Opcode.WHISP || parser.opcode == Opcode.FILE_REQUEST
 						|| parser.opcode == Opcode.FILE_OK || parser.opcode == Opcode.FILE_SEND) {
